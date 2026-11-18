@@ -244,3 +244,13 @@ def test_malformed_tool_call_asks_again_instead_of_offering_staff(ctx):
     t = Agent(ctx, Fumbles()).respond("It's Alex Morgan, 07700 900201.")
     assert t.reply == CLARIFY_LINE and t.clarified
     assert "team" not in t.reply
+
+
+def test_provider_errors_are_logged_as_a_category_only(ctx):
+    class Limited:
+        def chat(self, *_):
+            from bistrovoice.llm import LLMError
+            raise LLMError("Error code: 429 - Rate limit reached for model in organization org_abc123")
+
+    t = Agent(ctx, Limited()).respond("Hi")
+    assert t.guard_events == ["llm_error: rate limited"]

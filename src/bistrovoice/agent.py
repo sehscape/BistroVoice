@@ -116,6 +116,20 @@ def tidy(text: str) -> str:
                     if not re.search(r"\b(the )?user\b|\bassistant\b", x, re.I))
 
 
+def _error_kind(err: Exception) -> str:
+    text = str(err).lower()
+    if "per day" in text:
+        return "daily quota used up"
+    if "429" in text or "rate limit" in text:
+        return "rate limited"
+    if "timed out" in text or "timeout" in text:
+        return "timeout"
+    if "connection" in text:
+        return "connection error"
+    m = re.search(r"error code: (\d{3})", text)
+    return f"provider error {m.group(1)}" if m else "provider error"
+
+
 def _phone_for_speech(digits: str) -> str:
     return f"{digits[:5]} {digits[5:]}" if len(digits) == 11 else digits
 
@@ -251,7 +265,8 @@ class Agent:
             result.clarified = True
             draft = CLARIFY_LINE
         except LLMError as err:
-            result.guard_events.append(f"llm_error: {str(err)[:120]}")
+            # Only a category: raw provider messages can contain account details.
+            result.guard_events.append(f"llm_error: {_error_kind(err)}")
             draft = LLM_DOWN_LINE
 
         result.draft = draft = tidy(draft)
