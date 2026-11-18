@@ -1,0 +1,13 @@
+day,opens,closes,last_seating
+Monday,,,
+Tuesday,12:00,15:00,14:00
+Tuesday,17:30,22:00,21:00
+Wednesday,12:00,15:00,14:00
+Wednesday,17:30,22:00,21:00
+Thursday,12:00,15:00,14:00
+Thursday,17:30,22:00,21:00
+Friday,12:00,15:00,14:00
+Friday,17:30,23:00,21:30
+Saturday,12:00,15:30,14:30
+Saturday,17:30,23:00,21:30
+Sunday,12:00,21:00,19:30

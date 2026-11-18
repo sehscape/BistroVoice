@@ -1,0 +1,21 @@
+dish_id,contains,detail,verified,checked_by,checked_on
+S1,milk,,yes,Head chef,2026-11-02
+S2,gluten;eggs;molluscs,gluten from wheat flour,yes,Head chef,2026-11-02
+S3,milk;nuts;mustard,nuts are walnuts,yes,Head chef,2026-11-02
+S4,,,,,
+S5,gluten;sesame,gluten from wheat flatbread; sesame from tahini,yes,Head chef,2026-11-02
+S6,crustaceans;milk,,yes,Head chef,2026-11-02
+M1,gluten;milk;nuts,nuts are cashews; the pesto also contains pine nuts,yes,Head chef,2026-11-02
+M2,milk;celery;sulphites,celery in the stock; sulphites from white wine,yes,Head chef,2026-11-02
+M3,fish;milk,,yes,Head chef,2026-11-02
+M4,sesame?;peanuts?,new spice blend supplier - waiting for the spec sheet,no,Sous chef,2026-11-12
+M5,gluten;eggs;milk,,yes,Head chef,2026-11-02
+M6,milk;sulphites,sulphites from brandy in the sauce,yes,Head chef,2026-11-02
+M7,sesame,sesame from tahini,yes,Head chef,2026-11-02
+D1,milk,,yes,Head chef,2026-11-02
+D2,mustard,,yes,Head chef,2026-11-02
+D3,gluten;milk,,yes,Head chef,2026-11-02
+P1,gluten;eggs;milk;sulphites,sulphites from marsala wine,yes,Pastry chef,2026-11-02
+P2,gluten;eggs;milk;nuts?,bakery changed supplier - nut status not confirmed,pending,Pastry chef,2026-11-14
+P3,none,,yes,Pastry chef,2026-11-02
+P4,eggs;milk;soya,soya lecithin in the chocolate,yes,Pastry chef,2026-11-02

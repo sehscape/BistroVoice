@@ -1,0 +1,21 @@
+dish_id,dish,description,price,category
+S1,Burrata and Heirloom Tomatoes,"Creamy burrata with heirloom tomatoes, basil oil and sea salt",11.50,starter
+S2,Calamari Fritti,Crispy fried squid with a lemon aioli,10.00,starter
+S3,Beetroot and Goat's Cheese Salad,"Roasted beetroot, whipped goat's cheese, candied walnuts and a mustard dressing",9.50,starter
+S4,Soup of the Day,Changes daily and is served with sourdough,7.00,starter
+S5,Hummus and Flatbread,Smoked paprika hummus with warm flatbread,8.00,starter
+S6,Garlic Prawns,Tiger prawns in garlic and chilli butter,12.00,starter
+M1,Trofie al Pesto,"Twisted pasta with house basil pesto, green beans and parmesan",16.50,main
+M2,Wild Mushroom Risotto,"Arborio rice, porcini, thyme and parmesan",17.00,main
+M3,Pan-Roasted Sea Bass,"Sea bass with crushed potatoes, samphire and lemon butter",22.00,main
+M4,Lamb Tagine,"Slow-cooked lamb shoulder with ras el hanout, apricots and couscous",21.00,main
+M5,Chicken Milanese,"Breaded chicken breast with rocket, parmesan and lemon",18.50,main
+M6,Ember Steak Frites,"Eight ounce sirloin with fries and peppercorn sauce",26.00,main
+M7,Roasted Cauliflower Steak,"Whole roasted cauliflower with tahini, pomegranate and chickpeas",15.50,main
+D1,Truffle Fries,Skin-on fries with truffle oil and parmesan,5.50,side
+D2,Garden Salad,Mixed leaves with a house mustard dressing,4.50,side
+D3,Sourdough and Butter,Warm sourdough with salted butter,4.00,side
+P1,Tiramisu,"Espresso-soaked sponge, mascarpone and cocoa",8.00,dessert
+P2,Sticky Toffee Pudding,Date sponge with toffee sauce and vanilla ice cream,8.50,dessert
+P3,Lemon Sorbet,Three scoops of lemon sorbet,6.00,dessert
+P4,Dark Chocolate Mousse,70 percent dark chocolate mousse with sea salt,7.50,dessert

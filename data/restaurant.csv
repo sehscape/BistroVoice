@@ -1,0 +1,13 @@
+key,value
+name,Olive & Ember
+address,"14 Clerkenwell Road, London (fictional)"
+phone,020 7946 0321
+timezone,Europe/London
+booking_duration_minutes,120
+slot_minutes,15
+min_party,1
+max_online_party,8
+max_empty_seats,2
+max_days_ahead,60
+min_notice_minutes,30
+kitchen_note,"Our kitchen handles all 14 major allergens, so we can't rule out traces."

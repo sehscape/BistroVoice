@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+
+# Environments and secrets
+.venv/
+venv/
+.env
+
+# Generated at runtime: the SQLite file is rebuilt from data/*.csv,
+# models are downloaded by `bistrovoice download-models`.
+var/
+models/
+
+# Eval scratch (LLM cache, per-turn logs). The summary used by the README
+# lives in eval/results/ and is committed.
+runs/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

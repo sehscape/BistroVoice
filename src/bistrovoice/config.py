@@ -1,0 +1,40 @@
+"""Paths and settings. Everything is read from environment variables (.env)."""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+ROOT = Path(__file__).resolve().parents[2]
+DATA_DIR = ROOT / "data"
+MODELS_DIR = ROOT / "models"
+WEB_DIR = Path(__file__).resolve().parent / "web"
+
+load_dotenv(ROOT / ".env")
+
+
+@dataclass(frozen=True)
+class Settings:
+    db_path: Path
+    llm_base_url: str
+    llm_api_key: str
+    llm_model: str
+    stt_model: str
+    tts_voice: str
+
+    @classmethod
+    def from_env(cls) -> Settings:
+        db_path = Path(os.getenv("DB_PATH", "var/bistrovoice.db"))
+        if not db_path.is_absolute():
+            db_path = ROOT / db_path
+        return cls(
+            db_path=db_path,
+            llm_base_url=os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1"),
+            llm_api_key=os.getenv("LLM_API_KEY") or os.getenv("GROQ_API_KEY", ""),
+            llm_model=os.getenv("LLM_MODEL", "llama-3.3-70b-versatile"),
+            stt_model=os.getenv("STT_MODEL", "base.en"),
+            tts_voice=os.getenv("TTS_VOICE", "en_GB-jenny_dioco-medium"),
+        )
