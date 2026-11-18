@@ -128,6 +128,13 @@ def test_booking_validates_name_and_phone(ctx):
     assert bad_name["error"] == "invalid_name"
 
 
+def test_phone_formats_from_speech_to_text(ctx):
+    from bistrovoice.validation import parse_phone
+
+    for heard in ("07700, 900, 241", "077 00900 241", "+44 7700 900241", "07700-900-241"):
+        assert parse_phone(heard) == "07700900241"
+
+
 def test_booking_in_the_past_is_refused(ctx):
     r = run_tool(ctx, "create_reservation", {"name": "Sam Lee", "phone": "07700900555", "party_size": 2,
                                              "date": "2026-11-18", "time": "12:30"})

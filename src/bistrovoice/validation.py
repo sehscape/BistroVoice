@@ -103,7 +103,7 @@ def parse_name(value: str) -> str:
 
 def parse_phone(value: str) -> str:
     """UK numbers: 0 + 10 digits, or +44 + 10 digits. Stored as 11 digits."""
-    digits = re.sub(r"[\s().-]", "", str(value))
+    digits = re.sub(r"[\s().,-]", "", str(value))
     if digits.startswith("+44"):
         digits = "0" + digits[3:]
     elif digits.startswith("0044"):

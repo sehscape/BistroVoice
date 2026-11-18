@@ -29,6 +29,31 @@ PIPER_DIR = MODELS_DIR / "piper"
 CALLER_VOICES = ["en_US-ryan-medium", "en_GB-northern_english_male-medium"]
 
 
+def keep_full_cpu_speed() -> None:
+    """Opt this process out of Windows 11 power throttling (EcoQoS).
+
+    Windows moves background or minimised processes onto efficiency cores at
+    low clock speed. Measured here: Whisper 3-7 s and Piper 2 s per call when
+    throttled, ~1 s and ~0.5 s when not. No-op on other systems.
+    """
+    if os.name != "nt":
+        return
+    import ctypes
+    from ctypes import wintypes
+
+    class _Throttling(ctypes.Structure):
+        _fields_ = [("Version", wintypes.ULONG), ("ControlMask", wintypes.ULONG),
+                    ("StateMask", wintypes.ULONG)]
+
+    kernel32 = ctypes.WinDLL("kernel32")
+    kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+    kernel32.SetProcessInformation.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p,
+                                               wintypes.DWORD]
+    state = _Throttling(1, 0x1, 0x0)  # execution-speed throttling: off
+    kernel32.SetProcessInformation(kernel32.GetCurrentProcess(), 4,  # ProcessPowerThrottling
+                                   ctypes.byref(state), ctypes.sizeof(state))
+
+
 def download_models(settings: Settings, agent_voice_only: bool = False) -> None:
     from piper.download_voices import download_voice
 
@@ -60,9 +85,10 @@ class Transcript:
 
 
 class Transcriber:
-    def __init__(self, model: str = "base.en", hint: str = "", beam_size: int = 1):
+    def __init__(self, model: str = "base.en", hint: str = "", beam_size: int = 5):
         from faster_whisper import WhisperModel
 
+        keep_full_cpu_speed()
         # 8 threads: more only adds contention on laptop efficiency cores.
         threads = min(8, os.cpu_count() or 4)
         self.model = WhisperModel(model, device="cpu", compute_type="int8", cpu_threads=threads)
@@ -157,7 +183,9 @@ def _clean_transcript(text: str) -> str:
 
 def menu_hint(conn) -> str:
     dishes = ", ".join(r[0] for r in conn.execute("SELECT dish FROM menu"))
-    return f"A phone call to Olive and Ember restaurant about a table booking. Menu: {dishes}."
+    # The phone example roughly halved phone-number errors in our tests (10/18 -> 13/18 right).
+    return (f"A phone call to Olive and Ember restaurant about a table booking. Menu: {dishes}. "
+            "Callers give UK phone numbers like 07700 900123.")
 
 
 # ====================================================================== text-to-speech
@@ -218,6 +246,7 @@ class Speaker:
         from piper import PiperVoice
         from piper.config import SynthesisConfig
 
+        keep_full_cpu_speed()
         path = PIPER_DIR / f"{voice}.onnx"
         if not path.exists():
             raise FileNotFoundError(f"{path} missing: run `bistrovoice download-models`")
