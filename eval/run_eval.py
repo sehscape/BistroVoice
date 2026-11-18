@@ -90,10 +90,10 @@ def _needs_repeat(said: str, res, previous_reply: str) -> bool:
     digits = re.sub(r"\D", "", said)
     if len(digits) < 7:
         return False
-    # the caller gave a phone number and the agent couldn't use it
+    # the caller gave their details (name + number) and the agent couldn't use them
     errors = {c.result.get("error") for c in res.tool_calls}
     got_it = digits[-6:] in re.sub(r"\D", "", res.reply)
-    asked = "?" in res.reply and re.search(r"\b(phone|number)\b", res.reply, re.I)
+    asked = "?" in res.reply and re.search(r"\b(name|phone|number)\b", res.reply, re.I)
     return bool(errors & {"invalid_phone", "details_not_given"}) or bool(asked and not got_it)
 
 
