@@ -172,6 +172,38 @@ Full transcripts: [`eval/results/voice/scenarios.jsonl`](eval/results/voice/scen
 </details>"""
 
 
+def compare_block(run2: dict) -> str:
+    """Run 1 (before the fixes it led to) against run 2, on the same calls."""
+    sys.path.insert(0, str(ROOT))
+    from eval.run_eval import summarise  # noqa: PLC0415
+
+    path = RESULTS / "voice-run1" / "scenarios.jsonl"
+    if not path.exists():
+        return ""
+    run1 = {r["id"]: r for r in map(json.loads, path.read_text(encoding="utf-8").splitlines())}
+    same = [i for i in run1 if i in run2]
+    a = summarise([run1[i] for i in same], "voice", "", True)
+    b = summarise([run2[i] for i in same], "voice", "", True)
+    c = summarise(list(run2.values()), "voice", "", True)
+
+    def row(label, key, fmt):
+        return f"| {label} | {fmt(a[key])} | {fmt(b[key])} | {fmt(c[key])} |"
+
+    sec = lambda v: f"{v['first_audio_ms']['p50'] / 1000:.1f} s"  # noqa: E731
+    return "\n".join([
+        f"| | Run 1, {len(same)} calls (before) | Run 2, same {len(same)} calls | Run 2, all {len(run2)} calls |",
+        "|---|---|---|---|",
+        row("Task completion", "task_completion", pct),
+        row("Tool selection", "tool_selection", pct),
+        row("Tool arguments", "tool_arguments", pct),
+        row("Handoff accuracy", "handoff_accuracy", pct),
+        row("Made-up allergen answers heard", "made_up_allergen_answers", str),
+        row("Wrong bookings", "wrong_bookings", str),
+        row("Caller had to repeat a line", "caller_repeats", str),
+        f"| First audio, p50 | {sec(a['latency_ms'])} | {sec(b['latency_ms'])} | {sec(c['latency_ms'])} |",
+    ])
+
+
 def stt_block() -> str:
     b = json.loads((RESULTS / "stt_benchmark.json").read_text(encoding="utf-8"))
     rows = "\n".join(f"| {k} | {v['wer']:.1%} | {v['key_facts_kept']} | {v['p50_ms']:,} | {v['real_time_factor']:.2f} |"
@@ -189,17 +221,17 @@ the build log below."""
 
 
 def tests_count() -> int:
+    # pyproject already adds -q, so this prints one "file: count" line per test file
     out = subprocess.run([sys.executable, "-m", "pytest", "--collect-only", "-q"], cwd=ROOT,
                          capture_output=True, text=True).stdout
-    m = re.search(r"(\d+) tests? collected", out)
-    return int(m.group(1)) if m else 0
+    return sum(int(n) for n in re.findall(r"^tests\S*: (\d+)$", out, re.M))
 
 
 def replace(text: str, name: str, body: str) -> str:
-    pattern = re.compile(rf"(<!-- {name}:start -->\n).*?(\n<!-- {name}:end -->)", re.S)
+    pattern = re.compile(rf"(<!-- {name}:start -->).*?(<!-- {name}:end -->)", re.S)
     if not pattern.search(text):
         raise SystemExit(f"README marker {name} not found")
-    return pattern.sub(lambda m: m.group(1) + body.strip() + m.group(2), text)
+    return pattern.sub(lambda m: f"{m.group(1)}\n{body.strip()}\n{m.group(2)}", text)
 
 
 def main() -> None:
@@ -211,6 +243,8 @@ def main() -> None:
     text = replace(text, "samples", samples_block(rows))
     text = replace(text, "eval", eval_block(s, rows))
     text = replace(text, "stt", stt_block())
+    if s.get("complete"):
+        text = replace(text, "compare", compare_block(rows))
     n = tests_count()
     text = re.sub(r"tests-\d+%20passing", f"tests-{n}%20passing", text)
     text = re.sub(r"\b\d+ unit tests, including", f"{n} unit tests, including", text)

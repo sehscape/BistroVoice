@@ -22,9 +22,9 @@ OUT = ROOT / "docs" / "img"
 
 THEMES = {
     "light": {"bg": "#fcfcfb", "text": "#0b0b0b", "muted": "#52514e", "grid": "#e4e2dc",
-              "s1": "#2a78d6", "s1_soft": "#b9d3f2", "s2": "#eb6834"},
+              "s1": "#2a78d6", "s1_soft": "#b9d3f2"},
     "dark": {"bg": "#1a1a19", "text": "#f0efec", "muted": "#c3c2b7", "grid": "#33322f",
-             "s1": "#3987e5", "s1_soft": "#24466e", "s2": "#d95926"},
+             "s1": "#3987e5", "s1_soft": "#24466e"},
 }
 
 
@@ -62,9 +62,11 @@ def latency(summary: dict) -> None:
             ax.text(b + max(p95) * 0.015, yi, f"p50 {a:,.0f} ms  ·  p95 {b:,.0f} ms",
                     va="center", color=t["text"], fontsize=9.5)
         ax.set_yticks(list(y), [names[k] for k in keys], color=t["text"])
-        ax.set_xlim(0, max(p95) * 1.55)
+        ax.set_xlim(0, max(p95) * 1.6)
         ax.set_xlabel("milliseconds", color=t["muted"])
-        ax.legend(frameon=False, labelcolor=t["text"], loc="lower right", ncols=2)
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(handles[::-1], labels[::-1], frameon=False, labelcolor=t["text"],
+                  loc="upper center", bbox_to_anchor=(0.5, -0.22), ncols=2)
         ax.set_title("Latency per customer turn (local CPU, voice mode)", loc="left",
                      color=t["text"], fontsize=12, pad=12)
         _save(fig, "latency", theme)
@@ -91,49 +93,10 @@ def categories(summary: dict) -> None:
         _save(fig, "completion", theme)
 
 
-def guards(on: dict, off: dict) -> None:
-    metrics = [
-        ("Task completion", on["task_completion"] * 100, off["task_completion"] * 100, "%"),
-        ("Handoff accuracy", on["handoff_accuracy"] * 100, off["handoff_accuracy"] * 100, "%"),
-    ]
-    counts = [
-        ("Made-up allergen answers\nheard by the caller", on["made_up_allergen_answers"],
-         off["made_up_allergen_answers"]),
-        ("Unwanted actions\n(bookings / handoffs)", on["unwanted_actions"], off["unwanted_actions"]),
-    ]
-    for theme, t in THEMES.items():
-        fig, axes = plt.subplots(1, 2, figsize=(9, 3.4), facecolor=t["bg"])
-        for ax, data, unit in ((axes[0], metrics, "%"), (axes[1], counts, "")):
-            _style(ax, t)
-            y = list(range(len(data)))[::-1]
-            h = 0.36
-            ax.barh([v + h / 2 for v in y], [d[2] for d in data], height=h, color=t["s2"],
-                    label="code guardrails off")
-            ax.barh([v - h / 2 for v in y], [d[1] for d in data], height=h, color=t["s1"],
-                    label="code guardrails on")
-            top = max(max(d[1], d[2]) for d in data) or 1
-            for yi, d in zip(y, data):
-                ax.text(d[2] + top * 0.02, yi + h / 2, f"{d[2]:.0f}{unit}", va="center",
-                        color=t["text"], fontsize=9)
-                ax.text(d[1] + top * 0.02, yi - h / 2, f"{d[1]:.0f}{unit}", va="center",
-                        color=t["text"], fontsize=9)
-            ax.set_yticks(y, [d[0] for d in data], color=t["text"])
-            ax.set_xlim(0, top * 1.25)
-        axes[1].legend(frameon=False, labelcolor=t["text"], loc="lower right", fontsize=9)
-        fig.suptitle("Same model, same calls: with and without the code guardrails", x=0.02,
-                     ha="left", color=t["text"], fontsize=12)
-        fig.tight_layout()
-        _save(fig, "guardrails", theme)
-
-
 def main() -> None:
     voice = json.loads((RESULTS / "voice" / "summary.json").read_text())
     latency(voice)
     categories(voice)
-    off_path = RESULTS / "text-no-guards" / "summary.json"
-    on_path = RESULTS / "text" / "summary.json"
-    if off_path.exists() and on_path.exists():
-        guards(json.loads(on_path.read_text()), json.loads(off_path.read_text()))
     print(f"charts written to {OUT}")
 
 
