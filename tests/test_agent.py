@@ -207,3 +207,28 @@ def test_skipped_allergy_question_is_answered_by_code(ctx):
     assert t.reply.startswith("Yes, the Trofie al Pesto contains tree nuts.")
     assert t.reply.endswith("Can I take a name?")
     assert "allergen_question_answered_by_code" in t.guard_events
+
+
+def test_weekday_in_the_callers_words_is_checked_against_the_date(ctx):
+    # Seen in the evaluation: "Tuesday at 7pm then" became 2026-11-23, a Monday.
+    llm = ScriptedLLM(call("check_table_availability", date="2026-11-23", time="19:00", party_size=4),
+                      call("check_table_availability", date="2026-11-24", time="19:00", party_size=4),
+                      say("Tuesday at 7pm is free. Can I take a name?"))
+    t = Agent(ctx, llm).respond("Tuesday at 7pm then.")
+    first, second = t.tool_calls
+    assert first.result["error"] == "date_mismatch" and "2026-11-24" in first.result["message"]
+    assert second.result["available"]
+
+
+def test_allergen_named_by_the_caller_is_passed_on(ctx):
+    # Seen in the evaluation: the model sent allergen "" for "any dairy in the sorbet?".
+    llm = ScriptedLLM(call("get_allergen_info", dish="lemon sorbet", allergen=""), say("Here you go."))
+    t = Agent(ctx, llm).respond("Is there any dairy in the lemon sorbet?")
+    assert t.tool_calls[0].args["allergen"] == "dairy"
+    assert t.reply.startswith("No, the Lemon Sorbet doesn't contain milk.")
+
+
+def test_model_narration_is_not_spoken():
+    from bistrovoice.agent import tidy
+
+    assert tidy("Could you give me the number? User hasn't responded yet.") == "Could you give me the number?"

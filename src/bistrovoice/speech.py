@@ -185,7 +185,8 @@ def menu_hint(conn) -> str:
     dishes = ", ".join(r[0] for r in conn.execute("SELECT dish FROM menu"))
     # The phone example roughly halved phone-number errors in our tests (10/18 -> 13/18 right).
     return (f"A phone call to Olive and Ember restaurant about a table booking. Menu: {dishes}. "
-            "Callers give UK phone numbers like 07700 900123.")
+            "Callers give UK phone numbers like 07700 900123 and ask about allergies: "
+            "nut free, gluten free, dairy free, shellfish, sesame.")
 
 
 # ====================================================================== text-to-speech

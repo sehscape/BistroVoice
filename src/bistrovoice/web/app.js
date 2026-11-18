@@ -287,7 +287,7 @@ function addTool(m) {
   div.innerHTML = `
     <div class="head"><span class="name ${m.forced ? "code" : ""}"></span><span class="ms">${m.ms} ms</span></div>
     <div class="args"></div><div class="res ${ok ? "ok" : "bad"}"></div>`;
-  div.querySelector(".name").textContent = (m.forced ? "guardrail → " : "") + m.name;
+  div.querySelector(".name").textContent = (m.forced ? "code → " : "llm → ") + m.name;
   div.querySelector(".args").textContent = short(m.args);
   div.querySelector(".res").textContent = (ok ? "→ " : "✕ ") + summary;
   $("trace").appendChild(div);

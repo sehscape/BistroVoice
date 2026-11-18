@@ -16,7 +16,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import timedelta
 
-from . import guardrails
+from . import allergens, guardrails
 from .db import WEEKDAYS
 from .llm import LLMClient, LLMError
 from .schemas import TOOL_SCHEMAS
@@ -109,7 +109,11 @@ def tidy(text: str) -> str:
     text = re.sub(r"([?!])\.+", r"\1", text)  # "number?........." -> "number?"
     text = re.sub(r"\.{4,}", ".", text)
     text = re.sub(r"([a-z0-9][.!?])([A-Z])", r"\1 \2", text)  # "digits.And" -> "digits. And"
-    return re.sub(r"\s+([,.!?])", r"\1", text).strip()
+    text = re.sub(r"\s+([,.!?])", r"\1", text).strip()
+    # The model occasionally narrates the conversation ("User hasn't responded
+    # yet."). A host never says "user" to a caller, so drop those sentences.
+    return " ".join(x for x in re.split(r"(?<=[.!?])\s+", text)
+                    if not re.search(r"\b(the )?user\b|\bassistant\b", x, re.I))
 
 
 def _phone_for_speech(digits: str) -> str:
@@ -251,6 +255,34 @@ class Agent:
         self.turns.append(current)
         return result
 
+    def _weekday_mismatch(self, name: str, args, user_text: str) -> dict | None:
+        """Code checks the model's date arithmetic against the caller's own words.
+
+        Seen in testing: "Tuesday then" became 2026-11-23, a Monday.
+        """
+        if name not in ("check_table_availability", "create_reservation") or not isinstance(args, dict):
+            return None
+        try:
+            day = parse_date(args.get("date", ""), self.ctx.now().date())
+        except ToolError:
+            return None
+        text = user_text.lower()
+        today = self.ctx.now().date()
+        said = [i for i, d in enumerate(WEEKDAYS) if re.search(rf"\b{d.lower()}\b", text)]
+        if "tomorrow" in text and not said:
+            expected = today + timedelta(days=1)
+            if day != expected:
+                return {"ok": False, "error": "date_mismatch",
+                        "message": f"The caller said tomorrow, which is {expected.isoformat()}."}
+            return None
+        if len(said) != 1 or day.weekday() == said[0]:
+            return None
+        correct = today + timedelta(days=(said[0] - today.weekday()) % 7)
+        return {"ok": False, "error": "date_mismatch",
+                "message": (f"The caller said {WEEKDAYS[said[0]]}, but {day.isoformat()} is a "
+                            f"{WEEKDAYS[day.weekday()]}. The coming {WEEKDAYS[said[0]]} is "
+                            f"{correct.isoformat()}.")}
+
     def mark_interrupted(self, heard: str) -> None:
         """The customer talked over the last reply; record what they actually heard.
 
@@ -280,8 +312,20 @@ class Agent:
             args = json.loads(raw_args or "{}")
         except json.JSONDecodeError:
             args = None
+        if args is not None and isinstance(args, dict) and self.guards:
+            # The model sometimes drops the allergen the caller named ("is there
+            # any dairy in...?" -> allergen ""). Fill it from the caller's words so
+            # the verified answer is about the right allergen.
+            if name == "get_allergen_info" and not args.get("allergen"):
+                word = next((w for w in re.findall(r"[a-z]+", user_text.lower())
+                             if allergens.keys_for(w)), None)
+                if word:
+                    args["allergen"] = word
+        mismatch = self._weekday_mismatch(name, args, user_text) if self.guards else None
         if args is None or not isinstance(args, dict):
             res = {"ok": False, "error": "bad_arguments", "message": "Arguments were not valid JSON."}
+        elif mismatch:
+            res = mismatch
         elif name == "create_reservation" and self.guards:
             res = self._create_with_confirmation(args, user_text)
         else:
