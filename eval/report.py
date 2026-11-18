@@ -34,11 +34,24 @@ def pct(x: float) -> str:
     return f"{x:.0%}"
 
 
+def pending_categories(s: dict) -> list[str]:
+    import yaml
+
+    scenarios = yaml.safe_load((ROOT / "eval" / "scenarios.yaml").read_text(encoding="utf-8"))
+    done = s["by_category"]
+    totals: dict[str, int] = {}
+    for sc in scenarios:
+        totals[sc["category"]] = totals.get(sc["category"], 0) + 1
+    return [c for c, n in totals.items() if c not in done or int(done[c].split("/")[1]) < n]
+
+
 def results_block(s: dict) -> str:
     lat = s["latency_ms"]
     done = "" if s.get("complete", True) else (
-        f"\n> **Partial run:** {s['scenarios']} of 50 calls so far (Groq's free daily quota ran out). "
-        "Rerunning `python eval/run_eval.py` resumes from the cache.\n")
+        f"\n> **Partial run: {s['scenarios']} of 50 calls.** Groq's free tier allows 200K tokens a day and the run "
+        f"stopped when they ran out. Still to run: {', '.join(pending_categories(s))}. Until then those cases are "
+        "covered by the unit tests (`tests/test_agent.py`, `tests/test_tools.py`). `python eval/run_eval.py` "
+        "resumes from the cache.\n")
     return f"""{done}
 | | Metric | Result |
 |---|---|---|
@@ -88,7 +101,10 @@ def transcript(r: dict, show_tools: bool = True) -> str:
                    f"{b['date']} {b['time']}, table {b['table_id']}</sub>")
     else:
         out.pop()
-    return "\n".join(out)
+    # Two trailing spaces force a line break inside a markdown blockquote; the
+    # ">" separator lines between turns already start a new paragraph.
+    return "\n".join(line if line == ">" or line.endswith("  ") or nxt == ">" else line + "  "
+                     for line, nxt in zip(out, out[1:] + [">"]))
 
 
 def samples_block(rows: dict) -> str:
@@ -145,7 +161,7 @@ once, more slowly.
 |---|---|
 {cats}
 
-**Latency per caller turn (ms)**, laptop CPU (Intel Core Ultra, no GPU)
+**Latency per caller turn (ms)**, laptop CPU (Intel Core Ultra 7 155U, no GPU)
 
 | Stage | p50 | p95 |
 |---|---|---|
@@ -186,13 +202,16 @@ def compare_block(run2: dict) -> str:
     b = summarise([run2[i] for i in same], "voice", "", True)
     c = summarise(list(run2.values()), "voice", "", True)
 
+    full = len(run2) > len(same)  # show "all calls" only when run 2 got further than run 1
+
     def row(label, key, fmt):
-        return f"| {label} | {fmt(a[key])} | {fmt(b[key])} | {fmt(c[key])} |"
+        return f"| {label} | {fmt(a[key])} | {fmt(b[key])} |" + (f" {fmt(c[key])} |" if full else "")
 
     sec = lambda v: f"{v['first_audio_ms']['p50'] / 1000:.1f} s"  # noqa: E731
     return "\n".join([
-        f"| | Run 1, {len(same)} calls (before) | Run 2, same {len(same)} calls | Run 2, all {len(run2)} calls |",
-        "|---|---|---|---|",
+        f"| | Run 1, {len(same)} calls (before) | Run 2, same {len(same)} calls |"
+        + (f" Run 2, all {len(run2)} calls |" if full else ""),
+        "|---|---|---|" + ("---|" if full else ""),
         row("Task completion", "task_completion", pct),
         row("Tool selection", "tool_selection", pct),
         row("Tool arguments", "tool_arguments", pct),
@@ -200,7 +219,8 @@ def compare_block(run2: dict) -> str:
         row("Made-up allergen answers heard", "made_up_allergen_answers", str),
         row("Wrong bookings", "wrong_bookings", str),
         row("Caller had to repeat a line", "caller_repeats", str),
-        f"| First audio, p50 | {sec(a['latency_ms'])} | {sec(b['latency_ms'])} | {sec(c['latency_ms'])} |",
+        f"| First audio, p50 | {sec(a['latency_ms'])} | {sec(b['latency_ms'])} |"
+        + (f" {sec(c['latency_ms'])} |" if full else ""),
     ])
 
 
@@ -208,16 +228,18 @@ def stt_block() -> str:
     b = json.loads((RESULTS / "stt_benchmark.json").read_text(encoding="utf-8"))
     rows = "\n".join(f"| {k} | {v['wer']:.1%} | {v['key_facts_kept']} | {v['p50_ms']:,} | {v['real_time_factor']:.2f} |"
                      for k, v in b.items())
-    return f"""[`eval/bench_stt.py`](eval/bench_stt.py): 12 typical caller lines spoken by two Piper voices
-(24 clips), transcribed on the laptop CPU. "Key facts" means every number, time, name and dish that the agent
+    return f"""[`eval/bench_stt.py`](eval/bench_stt.py): 14 typical caller lines spoken by two Piper voices
+(28 clips), transcribed on the laptop CPU. "Key facts" means every number, time, name and dish that the agent
 needs survived.
 
 | Model | Word error rate | Key facts kept | p50 latency (ms) | Real-time factor |
 |---|---|---|---|---|
 {rows}
 
-base.en with the menu-name prompt and beam 5 is the best trade-off. Phone numbers stay the hardest part, see
-the build log below."""
+The prompt (dish names, a phone-number example, allergy words) is the biggest win: 22 → 27 key facts for
+base.en. Beam 5 keeps the same facts here, but on a separate set of phone-number lines it got 7/10 right against
+4/10 for greedy decoding, which is worth ~0.2 s for a booking agent. small.en is 2.5x slower and no better.
+Phone numbers stay the hardest part, see the build log below."""
 
 
 def tests_count() -> int:
@@ -243,8 +265,7 @@ def main() -> None:
     text = replace(text, "samples", samples_block(rows))
     text = replace(text, "eval", eval_block(s, rows))
     text = replace(text, "stt", stt_block())
-    if s.get("complete"):
-        text = replace(text, "compare", compare_block(rows))
+    text = replace(text, "compare", compare_block(rows))
     n = tests_count()
     text = re.sub(r"tests-\d+%20passing", f"tests-{n}%20passing", text)
     text = re.sub(r"\b\d+ unit tests, including", f"{n} unit tests, including", text)
