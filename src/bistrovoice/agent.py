@@ -18,7 +18,7 @@ from datetime import timedelta
 
 from . import allergens, guardrails
 from .db import WEEKDAYS
-from .llm import LLMClient, LLMError
+from .llm import LLMClient, LLMError, MalformedToolCall
 from .schemas import TOOL_SCHEMAS
 from .tools import ToolContext, run_tool
 from .validation import (
@@ -243,6 +243,13 @@ class Agent:
                     break
             else:
                 draft = ""
+        except MalformedToolCall as err:
+            # The model fumbled its own tool call three times. The system isn't
+            # down, so don't offer staff (a "yes" would then hand the caller over);
+            # ask them to say it again, which gives the model a fresh attempt.
+            result.guard_events.append(f"malformed_tool_call: {str(err)[:160]}")
+            result.clarified = True
+            draft = CLARIFY_LINE
         except LLMError as err:
             result.guard_events.append(f"llm_error: {str(err)[:120]}")
             draft = LLM_DOWN_LINE

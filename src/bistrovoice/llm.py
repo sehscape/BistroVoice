@@ -46,6 +46,10 @@ class QuotaExhausted(LLMError):
     """The provider's daily token allowance is used up."""
 
 
+class MalformedToolCall(LLMError):
+    """The model kept writing tool calls the provider couldn't parse. Not an outage."""
+
+
 class LLMClient:
     def __init__(self, settings: Settings, cache_path: str | Path | None = None,
                  temperature: float = 0.0, max_tokens: int = 1024, max_wait_s: float = 3.0):
@@ -129,14 +133,18 @@ class LLMClient:
                 wait_ms += pause * 1000
                 continue
             except APIStatusError as err:
-                # Groq returns 400 "tool_use_failed" when a model writes a
-                # malformed tool call; one retry at a higher temperature fixes most.
+                # Groq returns 400 "tool_use_failed" when the model writes a
+                # malformed tool call (seen: `"party_size":1"`, a phone cut to 7
+                # digits). Sampling again at a higher temperature usually fixes it.
                 malformed = err.status_code == 400 and any(
                     k in str(err) for k in ("tool_use_failed", "tool call", "parse"))
-                if malformed and bad_tool_calls == 0:
+                if malformed:
                     bad_tool_calls += 1
-                    temperature = max(temperature, 0.4)
-                    continue
+                    if bad_tool_calls < 3:
+                        temperature = max(temperature, 0.0) + 0.4
+                        continue
+                    body = getattr(err, "body", None) or {}
+                    raise MalformedToolCall(str(body.get("failed_generation", err))[:300]) from err
                 if err.status_code >= 500 and _attempt < 2:
                     time.sleep(1)
                     continue

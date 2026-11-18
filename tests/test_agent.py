@@ -232,3 +232,15 @@ def test_model_narration_is_not_spoken():
     from bistrovoice.agent import tidy
 
     assert tidy("Could you give me the number? User hasn't responded yet.") == "Could you give me the number?"
+
+
+def test_malformed_tool_call_asks_again_instead_of_offering_staff(ctx):
+    from bistrovoice.llm import MalformedToolCall
+
+    class Fumbles:
+        def chat(self, *_):
+            raise MalformedToolCall('{"party_size":1","phone":"0770092"}')
+
+    t = Agent(ctx, Fumbles()).respond("It's Alex Morgan, 07700 900201.")
+    assert t.reply == CLARIFY_LINE and t.clarified
+    assert "team" not in t.reply
