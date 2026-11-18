@@ -92,8 +92,10 @@ def _bookable_slots(ctx: ToolContext, day: date):
             slot += timedelta(minutes=ctx.rules.slot_minutes)
 
 
-def nearest_free_times(ctx: ToolContext, day: date, at: time, party: int, limit: int = 3) -> list[time]:
-    free = [t for t in _bookable_slots(ctx, day) if t != at and _free_table(ctx, day, t, party)]
+def nearest_free_times(ctx: ToolContext, day: date, at: time, party: int, limit: int = 3,
+                       skip_requested: bool = True) -> list[time]:
+    free = [t for t in _bookable_slots(ctx, day)
+            if not (skip_requested and t == at) and _free_table(ctx, day, t, party)]
     free.sort(key=lambda t: (abs(_minutes(t) - _minutes(at)), _minutes(t)))
     return free[:limit]
 
@@ -105,7 +107,7 @@ def _other_days(ctx: ToolContext, day: date, at: time, party: int, days: int = 7
         d = day + timedelta(days=offset)
         if d > ctx.now().date() + timedelta(days=ctx.rules.max_days_ahead):
             break
-        times = nearest_free_times(ctx, d, at, party, limit=2)
+        times = nearest_free_times(ctx, d, at, party, limit=2, skip_requested=False)
         if times:
             out.append({"date": d.isoformat(), "day": spoken_date(d),
                         "times": [t.strftime("%H:%M") for t in times]})
@@ -114,8 +116,9 @@ def _other_days(ctx: ToolContext, day: date, at: time, party: int, days: int = 7
     return out
 
 
-def _alternatives(ctx: ToolContext, day: date, at: time, party: int) -> dict:
-    same_day = nearest_free_times(ctx, day, at, party)
+def _alternatives(ctx: ToolContext, day: date, at: time, party: int,
+                  skip_requested: bool = True) -> dict:
+    same_day = nearest_free_times(ctx, day, at, party, skip_requested=skip_requested)
     if same_day:
         spoken = ", ".join(spoken_time(t) for t in same_day)
         return {"alternatives": [t.strftime("%H:%M") for t in same_day],
@@ -146,7 +149,7 @@ def check_table_availability(ctx: ToolContext, date: str, time: str, party_size:
             if err.code == "closed":
                 target = next((day + timedelta(days=i) for i in range(1, 8)
                                if ctx.rules.services_on(day + timedelta(days=i))), day)
-            alt = _alternatives(ctx, target, at, size)
+            alt = _alternatives(ctx, target, at, size, skip_requested=target == day)
             err.message += " " + alt.pop("alternatives_text")
             err.extra.update(alt)
         raise

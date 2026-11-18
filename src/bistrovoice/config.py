@@ -23,6 +23,7 @@ class Settings:
     llm_api_key: str
     llm_model: str
     stt_model: str
+    stt_backend: str
     tts_voice: str
 
     @classmethod
@@ -34,7 +35,8 @@ class Settings:
             db_path=db_path,
             llm_base_url=os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1"),
             llm_api_key=os.getenv("LLM_API_KEY") or os.getenv("GROQ_API_KEY", ""),
-            llm_model=os.getenv("LLM_MODEL", "llama-3.3-70b-versatile"),
+            llm_model=os.getenv("LLM_MODEL", "openai/gpt-oss-120b"),
             stt_model=os.getenv("STT_MODEL", "base.en"),
+            stt_backend=os.getenv("STT_BACKEND", "local"),
             tts_voice=os.getenv("TTS_VOICE", "en_GB-jenny_dioco-medium"),
         )
