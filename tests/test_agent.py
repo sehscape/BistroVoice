@@ -39,7 +39,7 @@ def rows(ctx):
 
 
 def test_booking_needs_a_yes_in_a_later_turn(ctx):
-    llm = ScriptedLLM(call("create_reservation", **BOOKING), call("create_reservation", **BOOKING))
+    llm = ScriptedLLM(call("create_reservation", **BOOKING))
     agent = Agent(ctx, llm)
     t1 = agent.respond("Book it for Sam Lee, 07700 900555")
     assert t1.tool_calls[0].result["status"] == "needs_confirmation"
@@ -51,7 +51,7 @@ def test_booking_needs_a_yes_in_a_later_turn(ctx):
     assert t2.tool_calls[0].result["status"] == "booked"
     assert t2.reply.endswith("Your reference number is 1028.")
     assert rows(ctx) == 1
-    assert len(llm.sent) == 2  # no extra LLM call to phrase either reply
+    assert len(llm.sent) == 1  # read-back and receipt are code; the "yes" never reaches the LLM
 
 
 def test_model_cannot_confirm_on_the_customers_behalf(ctx):
@@ -76,7 +76,7 @@ def test_changed_details_need_a_new_confirmation(ctx):
     llm = ScriptedLLM(call("create_reservation", **BOOKING), call("create_reservation", **later))
     agent = Agent(ctx, llm)
     agent.respond("Sam Lee, 07700900555")
-    t2 = agent.respond("yes")
+    t2 = agent.respond("Could we make it 8pm instead?")
     assert t2.tool_calls[0].result["status"] == "needs_confirmation"
     assert rows(ctx) == 0
 
@@ -154,6 +154,7 @@ def test_system_prompt_carries_dates_and_pending_booking(ctx):
     messages = llm.sent[-1]
     system, note = messages[0]["content"], messages[-2]["content"]
     assert "Today is Wednesday 18 November 2026" in system
+    assert "Thu 19 Nov (tomorrow) = 2026-11-19" in system
     assert "Fri 20 Nov = 2026-11-20" in system
     assert note.startswith("Call notes: time now 15:00.")
     assert "Waiting for the customer to confirm: table for 4" in note
@@ -166,3 +167,43 @@ def test_history_is_append_only_so_it_can_be_cached(ctx):
     agent.respond("Do you take bookings?")
     first, second = llm.sent
     assert second[:len(first)] == first
+
+
+def test_plain_yes_is_booked_by_code_without_the_llm(ctx):
+    llm = ScriptedLLM(call("create_reservation", **BOOKING))
+    agent = Agent(ctx, llm)
+    agent.respond("Sam Lee, 07700 900555")
+    t = agent.respond("Yep, perfect.")
+    assert len(llm.sent) == 1  # the yes never reached the model
+    assert t.tool_calls[0].forced and t.tool_calls[0].result["status"] == "booked"
+    assert rows(ctx) == 1
+
+
+def test_a_yes_with_more_in_it_goes_to_the_llm(ctx):
+    llm = ScriptedLLM(call("create_reservation", **BOOKING), say("Of course. Shall I book it first?"))
+    agent = Agent(ctx, llm)
+    agent.respond("Sam Lee, 07700 900555")
+    agent.respond("Yes, and is the tiramisu nut free?")
+    assert len(llm.sent) == 2 and rows(ctx) == 0
+
+
+def test_failed_booking_is_not_retried_by_the_next_yes(ctx):
+    llm = ScriptedLLM(call("create_reservation", **BOOKING), say("Connecting you now."))
+    agent = Agent(ctx, llm)
+    agent.respond("Sam Lee, 07700 900555")
+    ctx.faults.add("create_reservation")
+    t = agent.respond("Yes please.")
+    assert "not booked" in t.reply and agent.pending is None
+    ctx.faults.clear()
+    agent.respond("Yes, put me through.")
+    assert rows(ctx) == 0
+
+
+def test_skipped_allergy_question_is_answered_by_code(ctx):
+    # The model handles the booking half and forgets the allergy (seen in testing).
+    llm = ScriptedLLM(call("check_table_availability", date="2026-11-18", time="19:30", party_size=4),
+                      say("Great, a table for four is free at 7:30pm. Can I take a name?"))
+    t = Agent(ctx, llm).respond("Can I book four at 7:30 tonight? Also, does the pesto contain nuts? I'm allergic.")
+    assert t.reply.startswith("Yes, the Trofie al Pesto contains tree nuts.")
+    assert t.reply.endswith("Can I take a name?")
+    assert "allergen_question_answered_by_code" in t.guard_events

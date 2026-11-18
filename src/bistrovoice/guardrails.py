@@ -146,6 +146,14 @@ def enforce_action_claims(reply: str, *, booked: bool, handed_off: bool,
     return " ".join(kept), events
 
 
+def asks_about_allergens(text: str) -> bool:
+    """Is the caller asking about allergens (as opposed to just naming food)?"""
+    if _STRONG.search(text):
+        return True
+    return bool(_WEAK.search(text) and re.search(
+        r"\b(contains?|have|has|in it|free|safe|any|without|allergic|intoleran\w*)\b", text, re.I))
+
+
 def is_affirmative(text: str) -> bool:
     """A clear yes, with no "but", "no", "change" or "wait" in it."""
     t = text.lower()

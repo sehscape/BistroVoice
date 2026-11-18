@@ -158,7 +158,8 @@ def check_table_availability(ctx: ToolContext, date: str, time: str, party_size:
     base = {"ok": True, "date": day.isoformat(), "time": at.strftime("%H:%M"), "party_size": size}
     if _free_table(ctx, day, at, size):
         return {**base, "available": True,
-                "message": f"A table for {size} is available on {when}."}
+                "message": f"A table for {size} is available on {when}.",
+                "next": "Get name and phone if missing, then call create_reservation."}
     alt = _alternatives(ctx, day, at, size)
     text = alt.pop("alternatives_text")
     return {**base, "available": False, **alt, "message": f"No table for {size} on {when}. {text}"}

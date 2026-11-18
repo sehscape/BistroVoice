@@ -14,7 +14,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from openai import APIStatusError, OpenAI, RateLimitError
+from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI, RateLimitError
 
 from .config import Settings
 
@@ -59,7 +59,7 @@ class LLMClient:
         self.max_wait_s = max_wait_s
         self.quota_exhausted = False
         self.client = OpenAI(base_url=settings.llm_base_url, api_key=settings.llm_api_key or "none",
-                             timeout=30, max_retries=0)
+                             timeout=20, max_retries=0)
         self.cache = None
         if cache_path:
             Path(cache_path).parent.mkdir(parents=True, exist_ok=True)
@@ -110,6 +110,7 @@ class LLMClient:
         temperature = self.temperature
         wait_ms = 0.0
         bad_tool_calls = 0
+        timeouts = 0
         for _attempt in range(12):
             start = time.perf_counter()
             try:
@@ -140,7 +141,12 @@ class LLMClient:
                     time.sleep(1)
                     continue
                 raise LLMError(str(err)) from err
-            except Exception as err:  # network, timeout
+            except (APITimeoutError, APIConnectionError) as err:
+                if timeouts == 0:  # one retry for a dropped or stuck request
+                    timeouts += 1
+                    continue
+                raise LLMError(str(err)) from err
+            except Exception as err:
                 raise LLMError(str(err)) from err
             ms = (time.perf_counter() - start) * 1000
             msg = resp.choices[0].message

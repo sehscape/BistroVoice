@@ -33,7 +33,9 @@ from .validation import (
 )
 
 MAX_STEPS = 5  # LLM calls per customer turn
-ASR_MIN_CONFIDENCE = 0.55
+# Calibrated on our own audio: correctly transcribed phone numbers scored as
+# low as 0.45 (digit strings lower Whisper's confidence); noise scores ~0.1.
+ASR_MIN_CONFIDENCE = 0.40
 
 CLARIFY_LINE = "Sorry, I didn't quite catch that. Could you say it again?"
 ALLERGEN_DOWN_LINE = ("I'm sorry, I can't check allergen information right now, so I won't guess. "
@@ -104,6 +106,8 @@ def tidy(text: str) -> str:
     text = re.sub(r"[*_`#]+", "", text)
     text = re.sub(r"^\s*[-\u2022]\s+", "", text, flags=re.M)
     text = re.sub(r"\s+", " ", text)
+    text = re.sub(r"([?!])\.+", r"\1", text)  # "number?........." -> "number?"
+    text = re.sub(r"\.{4,}", ".", text)
     text = re.sub(r"([a-z0-9][.!?])([A-Z])", r"\1 \2", text)  # "digits.And" -> "digits. And"
     return re.sub(r"\s+([,.!?])", r"\1", text).strip()
 
@@ -131,9 +135,11 @@ class Agent:
         """Instructions, dates and hours. Identical for every request made on the
         same day, so the provider can cache it."""
         today = self.ctx.now().date()
+        # Every entry keeps its weekday name: an earlier version wrote "tomorrow"
+        # instead of "Thu" and the model then mapped "Thursday" to the wrong date.
         calendar = ", ".join(
-            f"{'today' if i == 0 else 'tomorrow' if i == 1 else WEEKDAYS[d.weekday()][:3]} "
-            f"{d.day} {d:%b} = {d.isoformat()}"
+            f"{WEEKDAYS[d.weekday()][:3]} {d.day} {d:%b}"
+            f"{' (today)' if i == 0 else ' (tomorrow)' if i == 1 else ''} = {d.isoformat()}"
             for i, d in enumerate(today + timedelta(days=k) for k in range(8))
         )
         hours = "; ".join(
@@ -188,6 +194,13 @@ class Agent:
             self.turns.append([{"role": "user", "content": "(inaudible)"},
                                {"role": "assistant", "content": CLARIFY_LINE}])
             return result
+
+        # A short, clear "yes" to a read-back the caller heard: code already
+        # holds the details, so it books them itself. No LLM call, and no
+        # chance for the model to re-type the details wrongly (seen in testing:
+        # party_size "1\"" and a phone number cut to 7 digits).
+        if self.guards and self._is_plain_yes(user_text):
+            return self._book_pending(result)
 
         current: list[dict] = [{"role": "system", "content": self._note()},
                                {"role": "user", "content": user_text}]
@@ -277,6 +290,8 @@ class Agent:
         if name == "create_reservation" and res.get("status") == "booked":
             self.bookings.append(res)
             self.pending = None
+        elif name == "create_reservation" and res.get("error") == "system_unavailable":
+            self.pending = None
         if name == "handoff_to_staff" and res.get("status") == "handed_off":
             self.handed_off = True
         return ToolCallRecord(name, args or {}, res, (time.perf_counter() - start) * 1000)
@@ -335,6 +350,41 @@ class Agent:
                         "Ask the customer to confirm. Book only after they say yes."),
         }
 
+    def _is_plain_yes(self, text: str) -> bool:
+        p = self.pending
+        if not p or p.turn >= self.turn_no or "?" in text:
+            return False
+        if len(re.findall(r"[a-z']+", text.lower())) > 7:
+            return False
+        if re.search(r"\b(staff|person|someone|manager|human|also|and|allerg\w*)\b", text, re.I):
+            return False
+        return guardrails.is_affirmative(text)
+
+    def _book_pending(self, result: TurnResult) -> TurnResult:
+        note = self._note()
+        details = self.pending.args
+        start = time.perf_counter()
+        res = run_tool(self.ctx, "create_reservation", details)
+        record = ToolCallRecord("create_reservation", dict(details), res,
+                                (time.perf_counter() - start) * 1000, forced=True)
+        result.tool_calls.append(record)
+        result.tool_ms += record.ms
+        result.guard_events.append("confirmed_by_code")
+        if res.get("status") == "booked":
+            self.bookings.append(res)
+            reply = self._fixed_reply([record])
+        elif res.get("error") == "system_unavailable":
+            reply = ("I'm sorry, our booking system isn't responding, so your table is not booked. "
+                     "I can connect you with a member of our team.")
+        else:
+            reply = f"I'm sorry, I couldn't book that. {res.get('message', '')}".strip()
+        self.pending = None  # never retry a failed booking on the next "yes"
+        result.reply = result.draft = reply
+        self.turns.append([{"role": "system", "content": note},
+                           {"role": "user", "content": result.user_text},
+                           {"role": "assistant", "content": reply}])
+        return result
+
     def _fixed_reply(self, step: list[ToolCallRecord]) -> str | None:
         """A code-written reply when the step was a single booking or handoff action."""
         if len(step) != 1:
@@ -362,6 +412,17 @@ class Agent:
         verified = [c.result["say"] for c in calls
                     if c.name == "get_allergen_info" and c.result.get("say")]
 
+        # An allergy question must never be dropped. In testing the model once
+        # answered the booking half of "...tonight? Also, does the pesto contain
+        # nuts? I'm allergic." and ignored the allergy. If the caller asked
+        # about allergens in a dish and no lookup happened, code does it.
+        if guardrails.asks_about_allergens(result.user_text) and not any(
+                c.name == "get_allergen_info" for c in calls):
+            says = self._forced_allergen_lookup(result, result.user_text)
+            if says:
+                verified = verified + says
+                result.guard_events.append("allergen_question_answered_by_code")
+
         def lookup() -> list[str]:
             return self._forced_allergen_lookup(result)
 
@@ -376,9 +437,9 @@ class Agent:
         result.guard_events += events
         return reply
 
-    def _forced_allergen_lookup(self, result: TurnResult) -> list[str]:
-        """The model talked about allergens without the tool: look them up ourselves."""
-        text = f"{result.user_text} {result.draft}"
+    def _forced_allergen_lookup(self, result: TurnResult, text: str | None = None) -> list[str]:
+        """Look up allergens for the dishes being discussed, without the model."""
+        text = text if text is not None else f"{result.user_text} {result.draft}"
         allergen = next((w for w in re.findall(r"[a-z]+", result.user_text.lower())
                          if guardrails._STRONG.match(w) or guardrails._WEAK.match(w)), None)
         dishes = self._dishes_mentioned(text)
