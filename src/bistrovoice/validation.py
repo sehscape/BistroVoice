@@ -95,7 +95,8 @@ _NAME = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ' .-]{0,58}[A
 
 
 def parse_name(value: str) -> str:
-    name = " ".join(str(value).split())
+    # Transcripts put commas in odd places ("Fatima, Begum"): treat them as spaces.
+    name = " ".join(re.sub(r"[,;]", " ", str(value)).split())
     if not _NAME.match(name):
         raise ToolError("invalid_name", "I need a name for the booking (letters only).")
     return name

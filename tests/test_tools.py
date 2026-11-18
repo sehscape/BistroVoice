@@ -239,3 +239,10 @@ def test_handoff_is_logged(ctx):
     r = run_tool(ctx, "handoff_to_staff", {"reason": "allergen info unconfirmed for Lamb Tagine"})
     assert r["status"] == "handed_off"
     assert ctx.conn.execute("SELECT reason FROM handoffs").fetchone()[0].startswith("allergen")
+
+
+def test_names_with_transcript_commas():
+    from bistrovoice.validation import parse_name
+
+    assert parse_name("Fatima, Begum") == "Fatima Begum"
+    assert parse_name("  James  O'Neill ") == "James O'Neill"
