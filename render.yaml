@@ -1,0 +1,15 @@
+# Render Blueprint: New > Blueprint > pick this repo, then paste your
+# GROQ_API_KEY when asked. Free plan, no card needed.
+services:
+  - type: web
+    name: bistrovoice
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: STT_BACKEND
+        value: groq
+      - key: LLM_MODEL
+        value: openai/gpt-oss-120b
