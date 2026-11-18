@@ -81,14 +81,20 @@ class Voice:
         return first, total, seconds
 
 
-def _needs_repeat(said: str, res) -> bool:
-    if res.clarified:
+def _needs_repeat(said: str, res, previous_reply: str) -> bool:
+    """Would a real caller say that line again? Only when the agent couldn't use it."""
+    if res.clarified:  # "Sorry, I didn't catch that"
         return True
-    if len(re.sub(r"\D", "", said)) < 7:  # only lines where the caller gave a phone number
+    if res.reply == previous_reply:  # the agent asked exactly the same thing again
+        return True
+    digits = re.sub(r"\D", "", said)
+    if len(digits) < 7:
         return False
+    # the caller gave a phone number and the agent couldn't use it
     errors = {c.result.get("error") for c in res.tool_calls}
-    asked_again = "?" in res.reply and re.search(r"\b(phone|number)\b", res.reply, re.I)
-    return bool(errors & {"invalid_phone", "details_not_given"}) or bool(asked_again)
+    got_it = digits[-6:] in re.sub(r"\D", "", res.reply)
+    asked = "?" in res.reply and re.search(r"\b(phone|number)\b", res.reply, re.I)
+    return bool(errors & {"invalid_phone", "details_not_given"}) or bool(asked and not got_it)
 
 
 def run_scenario(sc: dict, llm, voice: Voice | None, guards: bool, index: int) -> dict:
@@ -132,7 +138,8 @@ def run_scenario(sc: dict, llm, voice: Voice | None, guards: bool, index: int) -
         # can't know that in advance, so repeat the line once when the agent
         # couldn't use it (unclear audio, or a phone number it couldn't read).
         # Scripted mishearings ("heard") are left alone: the next line is the repeat.
-        if not repeated and "heard" not in turn and _needs_repeat(turn["say"], res):
+        previous = turns[-2]["reply"] if len(turns) > 1 else ""
+        if not repeated and "heard" not in turn and _needs_repeat(turn["say"], res, previous):
             repeated = True
             continue
         n, repeated = n + 1, False
