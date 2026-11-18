@@ -1,0 +1,34 @@
+{
+  "tiny.en + menu hint": {
+    "wer": 0.126,
+    "key_facts_kept": "15/24",
+    "p50_ms": 578,
+    "max_ms": 625,
+    "real_time_factor": 0.27,
+    "mean_confidence": 0.826
+  },
+  "base.en": {
+    "wer": 0.11,
+    "key_facts_kept": "17/24",
+    "p50_ms": 1019,
+    "max_ms": 1083,
+    "real_time_factor": 0.482,
+    "mean_confidence": 0.842
+  },
+  "base.en + menu hint": {
+    "wer": 0.094,
+    "key_facts_kept": "20/24",
+    "p50_ms": 1106,
+    "max_ms": 1206,
+    "real_time_factor": 0.522,
+    "mean_confidence": 0.878
+  },
+  "small.en + menu hint": {
+    "wer": 0.068,
+    "key_facts_kept": "21/24",
+    "p50_ms": 3545,
+    "max_ms": 3927,
+    "real_time_factor": 1.661,
+    "mean_confidence": 0.897
+  }
+}

@@ -1,0 +1,706 @@
+# 50 scripted phone calls. The clock is frozen at Wednesday 18 November 2026,
+# 15:00 London time, and every call starts from a fresh copy of data/*.csv.
+#
+# Turn fields
+#   say:        what the caller says (spoken by a Piper caller voice in --mode voice)
+#   heard:      what speech-to-text "heard" instead (simulated mishearing)
+#   confidence: transcript confidence for `heard` (the agent's gate is 0.40)
+#
+# Expectation fields
+#   booking:   none | {party_size, date, time, name?, phone?}   checked in the database
+#   handoff:   true | false   was handoff_to_staff called
+#   tools:     calls the LLM should make (args are a subset; order not checked)
+#   allergen:  [{dish, allergen, truth: contains | absent | unconfirmed}]
+#   reply_any / reply_all / reply_none: strings in the agent's replies (case-insensitive)
+#   no_action_turns: turns (1-based) where the agent must not book or hand off
+
+# ------------------------------------------------------------- simple bookings
+- id: B01
+  category: simple booking
+  title: Two people tomorrow at 8pm
+  turns:
+    - say: Hi, can I book a table for two tomorrow at 8pm?
+    - say: It's Alex Morgan, 07700 900201.
+    - say: Yes, that's right.
+  expect:
+    booking: {party_size: 2, date: "2026-11-19", time: "20:00", phone: "07700900201"}
+    handoff: false
+    tools:
+      - {name: check_table_availability, args: {date: "2026-11-19", time: "20:00", party_size: 2}}
+      - {name: create_reservation, args: {name: Alex Morgan, phone: "07700900201", party_size: 2, date: "2026-11-19", time: "20:00"}}
+
+- id: B02
+  category: simple booking
+  title: Everything in one sentence
+  turns:
+    - say: Hello, this is Sam Lee. Could I book a table for three on Thursday at 1pm? My number is 07700 900202.
+    - say: Yes please.
+  expect:
+    booking: {party_size: 3, date: "2026-11-19", time: "13:00", phone: "07700900202"}
+    handoff: false
+    tools:
+      - {name: create_reservation, args: {name: Sam Lee, phone: "07700900202", party_size: 3, date: "2026-11-19", time: "13:00"}}
+
+- id: B03
+  category: simple booking
+  title: Six people, "half seven"
+  turns:
+    - say: I'd like a table for six on Thursday at half seven in the evening.
+    - say: Name is Fatima Begum and the number is 07700 900203.
+    - say: Correct, go ahead.
+  expect:
+    booking: {party_size: 6, date: "2026-11-19", time: "19:30"}
+    handoff: false
+    tools:
+      - {name: check_table_availability, args: {date: "2026-11-19", time: "19:30", party_size: 6}}
+
+- id: B04
+  category: simple booking
+  title: Table for one tonight
+  turns:
+    - say: Just me tonight, could I get a table at 6pm?
+    - say: Daniel Price, 07700 900204.
+    - say: Yep, perfect.
+  expect:
+    booking: {party_size: 1, date: "2026-11-18", time: "18:00"}
+    handoff: false
+    tools:
+      - {name: check_table_availability, args: {date: "2026-11-18", time: "18:00", party_size: 1}}
+
+- id: B05
+  category: simple booking
+  title: Sunday lunch for four
+  turns:
+    - say: Can we book Sunday lunch for four people at 1pm?
+    - say: Under Hughes. Megan Hughes. 07700 900205.
+    - say: Yes that's all correct.
+  expect:
+    booking: {party_size: 4, date: "2026-11-22", time: "13:00"}
+    handoff: false
+    tools:
+      - {name: check_table_availability, args: {date: "2026-11-22", time: "13:00", party_size: 4}}
+
+- id: B06
+  category: simple booking
+  title: Next Tuesday
+  turns:
+    - say: Do you have space for two next Tuesday at 7pm?
+    - say: Great, book it for Oliver Grant, 07700 900206.
+    - say: Yes.
+  expect:
+    booking: {party_size: 2, date: "2026-11-24", time: "19:00"}
+    handoff: false
+    tools:
+      - {name: check_table_availability, args: {date: "2026-11-24", time: "19:00", party_size: 2}}
+
+- id: B07
+  category: simple booking
+  title: Details given one at a time
+  turns:
+    - say: Hi, I'd like to make a reservation please.
+    - say: Friday, for two people.
+    - say: Half past twelve.
+    - say: Nadia Khan, 07700 900207.
+    - say: Yes, thank you.
+  expect:
+    booking: {party_size: 2, date: "2026-11-20", time: "12:30"}
+    handoff: false
+    tools:
+      - {name: check_table_availability, args: {date: "2026-11-20", time: "12:30", party_size: 2}}
+
+- id: B08
+  category: simple booking
+  title: International phone format
+  turns:
+    - say: Table for two tomorrow at 7pm please, name's Chris Doyle, number plus 44 7700 900208.
+    - say: That's right.
+  expect:
+    booking: {party_size: 2, date: "2026-11-19", time: "19:00", phone: "07700900208"}
+    handoff: false
+    tools:
+      - {name: create_reservation, args: {phone: "07700900208", party_size: 2, date: "2026-11-19", time: "19:00"}}
+
+# ------------------------------------------------------------- two requests in one turn
+- id: T01
+  category: two requests
+  title: "The brief's example: table + pesto nuts"
+  turns:
+    - say: Can I reserve a table for four people at 7:30 tonight? Also, does the pesto contain nuts? I'm allergic.
+    - say: Lucy Brennan, 07700 900211.
+    - say: Yes, please book it.
+  expect:
+    booking: {party_size: 4, date: "2026-11-18", time: "19:30"}
+    handoff: false
+    allergen: [{dish: Trofie al Pesto, allergen: nuts, truth: contains}]
+    tools:
+      - {name: check_table_availability, args: {date: "2026-11-18", time: "19:30", party_size: 4}}
+      - {name: get_allergen_info, args: {dish: pesto, allergen: nuts}}
+      - {name: create_reservation, args: {party_size: 4, date: "2026-11-18", time: "19:30"}}
+
+- id: T02
+  category: two requests
+  title: Booking + dessert menu
+  turns:
+    - say: Could I book two people for Friday at 1pm, and what desserts do you have?
+    - say: Ryan Cole, 07700 900212.
+    - say: Yes.
+  expect:
+    booking: {party_size: 2, date: "2026-11-20", time: "13:00"}
+    handoff: false
+    reply_all: [tiramisu, sorbet]
+    tools:
+      - {name: check_table_availability, args: {date: "2026-11-20", time: "13:00", party_size: 2}}
+      - {name: search_menu, args: {query: dessert}}
+
+- id: T03
+  category: two requests
+  title: Gluten question + booking
+  turns:
+    - say: Is the mushroom risotto gluten free? And can I get a table for three tomorrow at 8?
+    - say: Ella Ward, 07700 900213.
+    - say: Yes, go ahead.
+  expect:
+    booking: {party_size: 3, date: "2026-11-19", time: "20:00"}
+    handoff: false
+    allergen: [{dish: Wild Mushroom Risotto, allergen: gluten, truth: absent}]
+    tools:
+      - {name: get_allergen_info, args: {dish: risotto, allergen: gluten}}
+      - {name: check_table_availability, args: {date: "2026-11-19", time: "20:00", party_size: 3}}
+
+- id: T04
+  category: two requests
+  title: Booking + eggs in tiramisu
+  turns:
+    - say: A table for two tonight at 7, and does the tiramisu have egg in it?
+    - say: Jamie Fox, 07700 900214.
+    - say: Yes please.
+  expect:
+    booking: {party_size: 2, date: "2026-11-18", time: "19:00"}
+    handoff: false
+    allergen: [{dish: Tiramisu, allergen: eggs, truth: contains}]
+    tools:
+      - {name: check_table_availability, args: {date: "2026-11-18", time: "19:00", party_size: 2}}
+      - {name: get_allergen_info, args: {dish: tiramisu, allergen: egg}}
+
+- id: T05
+  category: two requests
+  title: Menu search + Monday opening
+  turns:
+    - say: Do you have anything with mushrooms, and are you open on Mondays?
+  expect:
+    booking: none
+    handoff: false
+    reply_all: [risotto, closed]
+    tools:
+      - {name: search_menu, args: {query: mushroom}}
+
+- id: T06
+  category: two requests
+  title: Busy time + unconfirmed allergen
+  turns:
+    - say: Table for four this Friday at 7:30, and is the sticky toffee pudding nut free?
+    - say: 9pm works for us.
+    - say: Kate Morris, 07700 900216.
+    - say: Yes.
+  expect:
+    booking: {party_size: 4, date: "2026-11-20", time: "21:00"}
+    handoff: false
+    allergen: [{dish: Sticky Toffee Pudding, allergen: nuts, truth: unconfirmed}]
+    reply_any: ["9pm", "9:00", "21:00", "9 pm"]
+    tools:
+      - {name: check_table_availability, args: {date: "2026-11-20", time: "19:30", party_size: 4}}
+      - {name: get_allergen_info, args: {dish: sticky toffee pudding, allergen: nuts}}
+
+- id: T07
+  category: two requests
+  title: Booking + shellfish in calamari
+  turns:
+    - say: Can I book three people for Saturday lunch at one o'clock? And does the calamari contain shellfish?
+    - say: Hugo Silva, 07700 900217.
+    - say: Yes that's right.
+  expect:
+    booking: {party_size: 3, date: "2026-11-21", time: "13:00"}
+    handoff: false
+    allergen: [{dish: Calamari Fritti, allergen: shellfish, truth: contains}]
+    tools:
+      - {name: check_table_availability, args: {date: "2026-11-21", time: "13:00", party_size: 3}}
+      - {name: get_allergen_info, args: {dish: calamari, allergen: shellfish}}
+
+# ------------------------------------------------------------- allergens
+- id: A01
+  category: allergen (verified)
+  title: Pesto and nuts
+  turns:
+    - say: Does the pesto contain nuts?
+  expect:
+    booking: none
+    handoff: false
+    allergen: [{dish: Trofie al Pesto, allergen: nuts, truth: contains}]
+    tools:
+      - {name: get_allergen_info, args: {dish: pesto, allergen: nuts}}
+
+- id: A02
+  category: allergen (verified)
+  title: Burrata and a nut allergy
+  turns:
+    - say: I have a nut allergy. Is the burrata safe for me?
+  expect:
+    booking: none
+    handoff: false
+    allergen: [{dish: Burrata and Heirloom Tomatoes, allergen: nuts, truth: absent}]
+    tools:
+      - {name: get_allergen_info, args: {dish: burrata, allergen: nuts}}
+
+- id: A03
+  category: allergen (verified)
+  title: Sesame in the hummus
+  turns:
+    - say: Does the hummus have sesame in it?
+  expect:
+    booking: none
+    handoff: false
+    allergen: [{dish: Hummus and Flatbread, allergen: sesame, truth: contains}]
+    tools:
+      - {name: get_allergen_info, args: {dish: hummus, allergen: sesame}}
+
+- id: A04
+  category: allergen (verified)
+  title: Coeliac asking about sea bass
+  turns:
+    - say: I'm coeliac. Does the sea bass contain any gluten?
+  expect:
+    booking: none
+    handoff: false
+    allergen: [{dish: Pan-Roasted Sea Bass, allergen: gluten, truth: absent}]
+    tools:
+      - {name: get_allergen_info, args: {dish: sea bass, allergen: gluten}}
+
+- id: A05
+  category: allergen (verified)
+  title: Dairy in the lemon sorbet
+  turns:
+    - say: Is there any dairy in the lemon sorbet?
+  expect:
+    booking: none
+    handoff: false
+    allergen: [{dish: Lemon Sorbet, allergen: dairy, truth: absent}]
+    tools:
+      - {name: get_allergen_info, args: {dish: lemon sorbet, allergen: dairy}}
+
+- id: A06
+  category: allergen (verified)
+  title: Egg in the chicken Milanese
+  turns:
+    - say: My daughter can't have eggs. Does the chicken milanese have egg?
+  expect:
+    booking: none
+    handoff: false
+    allergen: [{dish: Chicken Milanese, allergen: eggs, truth: contains}]
+    tools:
+      - {name: get_allergen_info, args: {dish: chicken milanese, allergen: egg}}
+
+- id: A07
+  category: allergen (missing / unclear)
+  title: Soup of the day, missing record
+  turns:
+    - say: Does the soup of the day contain celery?
+    - say: Oh okay, never mind then.
+  expect:
+    booking: none
+    handoff: false
+    allergen: [{dish: Soup of the Day, allergen: celery, truth: unconfirmed}]
+    tools:
+      - {name: get_allergen_info, args: {dish: soup, allergen: celery}}
+
+- id: A08
+  category: allergen (missing / unclear)
+  title: Lamb tagine, unclear record
+  turns:
+    - say: Is the lamb tagine okay for someone with a peanut allergy?
+  expect:
+    booking: none
+    handoff: false
+    allergen: [{dish: Lamb Tagine, allergen: peanuts, truth: unconfirmed}]
+    tools:
+      - {name: get_allergen_info, args: {dish: lamb tagine, allergen: peanut}}
+
+- id: A09
+  category: allergen (missing / unclear)
+  title: Pudding + nuts, accepts staff
+  turns:
+    - say: Does the sticky toffee pudding have nuts? I'm allergic.
+    - say: Yes please, put me through to someone.
+  expect:
+    booking: none
+    handoff: true
+    allergen: [{dish: Sticky Toffee Pudding, allergen: nuts, truth: unconfirmed}]
+    tools:
+      - {name: get_allergen_info, args: {dish: sticky toffee pudding, allergen: nuts}}
+      - {name: handoff_to_staff, args: {}}
+
+- id: A10
+  category: allergen (missing / unclear)
+  title: All allergens in the soup, accepts staff
+  turns:
+    - say: What allergens are in today's soup?
+    - say: Yes, could you connect me please?
+  expect:
+    booking: none
+    handoff: true
+    allergen: [{dish: Soup of the Day, allergen: "", truth: unconfirmed}]
+    tools:
+      - {name: get_allergen_info, args: {dish: soup}}
+      - {name: handoff_to_staff, args: {}}
+
+- id: A11
+  category: allergen (missing / unclear)
+  title: Unclear dish, then a verified one
+  turns:
+    - say: My son is allergic to sesame. Is there any in the lamb tagine?
+    - say: No thanks, we'll choose something else. What about the cauliflower steak?
+  expect:
+    booking: none
+    handoff: false
+    allergen:
+      - {dish: Lamb Tagine, allergen: sesame, truth: unconfirmed}
+      - {dish: Roasted Cauliflower Steak, allergen: sesame, truth: contains}
+    tools:
+      - {name: get_allergen_info, args: {dish: lamb tagine, allergen: sesame}}
+      - {name: get_allergen_info, args: {dish: cauliflower steak, allergen: sesame}}
+
+- id: A12
+  category: allergen (missing / unclear)
+  title: Which desserts are nut free?
+  turns:
+    - say: Which of your desserts are nut free?
+  expect:
+    booking: none
+    handoff: false
+    allergen: [{dish: Sticky Toffee Pudding, allergen: nuts, truth: unconfirmed}]
+    tools:
+      - {name: get_allergen_info, args: {dish: sticky toffee pudding, allergen: nuts}}
+
+# ------------------------------------------------------------- unavailable times
+- id: U01
+  category: unavailable time
+  title: Busy Friday, takes 9pm
+  turns:
+    - say: Have you got a table for four on Friday at 7:30?
+    - say: 9pm is fine.
+    - say: Tom Baker, 07700 900231.
+    - say: Yes please.
+  expect:
+    booking: {party_size: 4, date: "2026-11-20", time: "21:00"}
+    handoff: false
+    reply_any: ["9pm", "9:00", "21:00", "9 pm"]
+    tools:
+      - {name: check_table_availability, args: {date: "2026-11-20", time: "19:30", party_size: 4}}
+      - {name: create_reservation, args: {party_size: 4, date: "2026-11-20", time: "21:00"}}
+
+- id: U02
+  category: unavailable time
+  title: Busy Friday, declines alternatives
+  turns:
+    - say: Two people this Friday at 8pm please.
+    - say: No, those times don't work for us, thanks anyway.
+  expect:
+    booking: none
+    handoff: false
+    reply_any: ["9pm", "9 pm", "9:00", "21:00", "9:15", "9:30"]
+    tools:
+      - {name: check_table_availability, args: {date: "2026-11-20", time: "20:00", party_size: 2}}
+
+- id: U03
+  category: unavailable time
+  title: Closed on Monday
+  turns:
+    - say: Can I book a table for four on Monday at 7?
+    - say: Tuesday at 7pm then.
+    - say: Grace Liu, 07700 900233.
+    - say: Yes.
+  expect:
+    booking: {party_size: 4, date: "2026-11-24", time: "19:00"}
+    handoff: false
+    reply_any: [closed]
+    tools:
+      - {name: check_table_availability, args: {date: "2026-11-24", time: "19:00", party_size: 4}}
+
+- id: U04
+  category: unavailable time
+  title: After last seating
+  turns:
+    - say: Table for two tomorrow at 10pm?
+    - say: Okay, 9 o'clock then.
+    - say: Ben Ross, 07700 900234.
+    - say: Yes.
+  expect:
+    booking: {party_size: 2, date: "2026-11-19", time: "21:00"}
+    handoff: false
+    tools:
+      - {name: create_reservation, args: {party_size: 2, date: "2026-11-19", time: "21:00"}}
+
+- id: U05
+  category: unavailable time
+  title: Between lunch and dinner today
+  turns:
+    - say: Can I get a table for two today at 3:30?
+    - say: 5:30 is okay.
+    - say: Isla Grey, 07700 900235.
+    - say: Yes please.
+  expect:
+    booking: {party_size: 2, date: "2026-11-18", time: "17:30"}
+    handoff: false
+    tools:
+      - {name: check_table_availability, args: {date: "2026-11-18", time: "15:30", party_size: 2}}
+      - {name: create_reservation, args: {party_size: 2, date: "2026-11-18", time: "17:30"}}
+
+- id: U06
+  category: unavailable time
+  title: Party of twelve goes to staff
+  turns:
+    - say: I'd like to book for twelve people on Saturday evening at 7.
+    - say: Yes please, connect me.
+  expect:
+    booking: none
+    handoff: true
+    tools:
+      - {name: handoff_to_staff, args: {}}
+
+- id: U07
+  category: unavailable time
+  title: Date in the past
+  turns:
+    - say: Can I book for two yesterday at 7pm?
+    - say: Oh sorry, I meant tomorrow.
+    - say: Leo Hart, 07700 900237.
+    - say: Yes.
+  expect:
+    booking: {party_size: 2, date: "2026-11-19", time: "19:00"}
+    handoff: false
+    tools:
+      - {name: create_reservation, args: {party_size: 2, date: "2026-11-19", time: "19:00"}}
+
+# ------------------------------------------------------------- tool / system failures
+- id: F01
+  category: tool failure
+  title: Booking database down, accepts staff
+  faults: [create_reservation]
+  turns:
+    - say: Table for two tomorrow at 7pm please. Anna Webb, 07700 900241.
+    - say: Yes, book it.
+    - say: Yes please, put me through.
+  expect:
+    booking: none
+    handoff: true
+    reply_any: [sorry, apolog]
+    tools:
+      - {name: create_reservation, args: {party_size: 2, date: "2026-11-19", time: "19:00"}}
+      - {name: handoff_to_staff, args: {}}
+
+- id: F02
+  category: tool failure
+  title: Availability check down, declines staff
+  faults: [check_table_availability]
+  turns:
+    - say: Do you have a table for two tomorrow at 7?
+    - say: No thanks, I'll call back later.
+  expect:
+    booking: none
+    handoff: false
+    reply_any: [sorry, apolog]
+    tools:
+      - {name: check_table_availability, args: {date: "2026-11-19", time: "19:00", party_size: 2}}
+
+- id: F03
+  category: tool failure
+  title: Allergen lookup down
+  faults: [get_allergen_info]
+  turns:
+    - say: Does the pesto contain nuts? I'm allergic.
+  expect:
+    booking: none
+    handoff: false
+    allergen: [{dish: Trofie al Pesto, allergen: nuts, truth: unconfirmed}]
+    tools:
+      - {name: get_allergen_info, args: {dish: pesto, allergen: nuts}}
+
+- id: F04
+  category: tool failure
+  title: Menu search down
+  faults: [search_menu]
+  turns:
+    - say: What desserts do you have?
+  expect:
+    booking: none
+    handoff: false
+    reply_any: [sorry, apolog]
+    reply_none: ["£", "pounds", tiramisu, sorbet, mousse, cheesecake, brownie]
+    tools:
+      - {name: search_menu, args: {query: dessert}}
+
+- id: F05
+  category: tool failure
+  title: Handoff itself fails
+  faults: [handoff_to_staff]
+  turns:
+    - say: Can I speak to a manager please?
+  expect:
+    booking: none
+    handoff: true
+    reply_any: ["7946", "0321"]
+    tools:
+      - {name: handoff_to_staff, args: {}}
+
+- id: F06
+  category: tool failure
+  title: LLM provider down
+  faults: [llm]
+  turns:
+    - say: Hi, a table for two tomorrow at 7 please.
+  expect:
+    booking: none
+    handoff: false
+    reply_any: [sorry]
+
+# ------------------------------------------------------------- misheard input
+- id: M01
+  category: misheard input
+  title: Low-confidence transcript
+  turns:
+    - say: A table for four at seven thirty tonight please.
+      heard: Table for for at heaven thirty to night peas.
+      confidence: 0.31
+    - say: A table for four at seven thirty tonight.
+    - say: Mark Evans, 07700 900251.
+    - say: Yes.
+  expect:
+    booking: {party_size: 4, date: "2026-11-18", time: "19:30"}
+    handoff: false
+    no_action_turns: [1]
+    tools:
+      - {name: check_table_availability, args: {date: "2026-11-18", time: "19:30", party_size: 4}}
+
+- id: M02
+  category: misheard input
+  title: Confident but garbled
+  turns:
+    - say: Can I book a table for four at seven tonight?
+      heard: Can I book a cable for bore at heaven tonight?
+      confidence: 0.71
+    - say: Sorry, a table for four people at 7pm tonight.
+    - say: Rosa Diaz, 07700 900252.
+    - say: Yes.
+  expect:
+    booking: {party_size: 4, date: "2026-11-18", time: "19:00"}
+    handoff: false
+    no_action_turns: [1]
+    tools:
+      - {name: check_table_availability, args: {date: "2026-11-18", time: "19:00", party_size: 4}}
+
+- id: M03
+  category: misheard input
+  title: Two heard as twenty-two
+  turns:
+    - say: Table for two tomorrow at 8pm.
+      heard: Table for 22 tomorrow at 8pm.
+      confidence: 0.82
+    - say: No, two people, just two.
+    - say: Paul Young, 07700 900253.
+    - say: Yes.
+  expect:
+    booking: {party_size: 2, date: "2026-11-19", time: "20:00"}
+    handoff: false
+    no_action_turns: [1]
+    tools:
+      - {name: check_table_availability, args: {date: "2026-11-19", time: "20:00", party_size: 2}}
+
+- id: M04
+  category: misheard input
+  title: Phone number missing a digit
+  turns:
+    - say: Table for two tomorrow at 7, it's Kim Park, 07700 900254.
+      heard: Table for two tomorrow at 7, it's Kim Park, 07700 90254.
+      confidence: 0.77
+    - say: It's 07700 900254.
+    - say: Yes.
+  expect:
+    booking: {party_size: 2, date: "2026-11-19", time: "19:00", phone: "07700900254"}
+    handoff: false
+    no_action_turns: [1]
+    tools:
+      - {name: create_reservation, args: {phone: "07700900254", party_size: 2, date: "2026-11-19", time: "19:00"}}
+
+- id: M05
+  category: misheard input
+  title: Wrong day caught at read-back
+  turns:
+    - say: Table for two on Thursday at 1pm, Joe Tan, 07700 900255.
+      heard: Table for two on Friday at 1pm, Joe Tan, 07700 900255.
+      confidence: 0.86
+    - say: No, I said Thursday, not Friday.
+    - say: Yes, that's right.
+  expect:
+    booking: {party_size: 2, date: "2026-11-19", time: "13:00"}
+    handoff: false
+    tools:
+      - {name: create_reservation, args: {party_size: 2, date: "2026-11-19", time: "13:00"}}
+
+- id: M06
+  category: misheard input
+  title: Noise, then a question
+  turns:
+    - say: (background noise)
+      heard: ""
+      confidence: 0.1
+    - say: Sorry about that. What time do you close tonight?
+  expect:
+    booking: none
+    handoff: false
+    no_action_turns: [1]
+    reply_any: ["10pm", "10 pm", "22:00", "10:00", "ten"]
+
+# ------------------------------------------------------------- menu and staff
+- id: G01
+  category: menu and staff
+  title: Price question
+  turns:
+    - say: How much is the sea bass?
+  expect:
+    booking: none
+    handoff: false
+    reply_any: ["£22", "22 pounds", "twenty-two"]
+    tools:
+      - {name: search_menu, args: {query: sea bass}}
+
+- id: G02
+  category: menu and staff
+  title: Dish not on the menu
+  turns:
+    - say: Do you do pizza?
+  expect:
+    booking: none
+    handoff: false
+    reply_none: ["£", "margherita", "pepperoni"]
+    tools:
+      - {name: search_menu, args: {query: pizza}}
+
+- id: G03
+  category: menu and staff
+  title: Sunday opening time
+  turns:
+    - say: What time do you open on Sunday?
+  expect:
+    booking: none
+    handoff: false
+    reply_any: ["12", "noon", "midday", "twelve"]
+
+- id: G04
+  category: menu and staff
+  title: Asks for a person
+  turns:
+    - say: Could I speak to a real person please?
+  expect:
+    booking: none
+    handoff: true
+    tools:
+      - {name: handoff_to_staff, args: {}}
