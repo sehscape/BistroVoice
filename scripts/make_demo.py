@@ -83,14 +83,14 @@ def render(scenario_id: str, caller: Speaker, agent: Speaker) -> None:
     run = lambda *args: subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *args],  # noqa: E731
                                        cwd=OUT, check=True)
     run("-i", wav_path.name, "-b:a", "96k", f"{scenario_id}.mp3")
-    style = ("FontName=Segoe UI,FontSize=15,PrimaryColour=&H00F1E9E1,OutlineColour=&H00100D0B,"
+    style = ("FontName=Segoe UI,FontSize=13,PrimaryColour=&H00F1E9E1,OutlineColour=&H00100D0B,"
              "BorderStyle=3,Outline=6,Shadow=0,MarginV=36,Alignment=2")
     run("-i", wav_path.name, "-filter_complex",
-        "[0:a]showwaves=s=1280x720:mode=cline:rate=25:colors=0x3B74E8|0x3B74E8,"
+        "[0:a]showwaves=s=960x540:mode=cline:rate=25:colors=0xE8743B:draw=full,"
         "format=yuv420p,drawbox=c=0x0F1114@0.0:t=fill[w];"
-        f"color=c=0x0F1114:s=1280x720:r=25[bg];[bg][w]overlay=shortest=1,"
+        f"color=c=0x14110F:s=960x540:r=25[bg];[bg][w]overlay=shortest=1,"
         f"subtitles={scenario_id}.srt:force_style='{style}'[v]",
-        "-map", "[v]", "-map", "0:a", "-c:v", "libx264", "-crf", "28", "-preset", "veryfast",
+        "-map", "[v]", "-map", "0:a", "-c:v", "libx264", "-crf", "36", "-preset", "veryfast",
         "-c:a", "aac", "-b:a", "96k", "-shortest", f"{scenario_id}.mp4")
     wav_path.unlink()
     (OUT / f"{scenario_id}.srt").unlink()

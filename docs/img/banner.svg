@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300" role="img" aria-label="BistroVoice: a real-time voice host that books tables and never guesses allergens">
+  <defs>
+    <radialGradient id="orb" cx="35%" cy="30%" r="75%">
+      <stop offset="0" stop-color="#ffb07c"/>
+      <stop offset="0.55" stop-color="#e8743b"/>
+      <stop offset="1" stop-color="#8c3410"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#e8743b" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#e8743b" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b1714"/>
+      <stop offset="1" stop-color="#110e0c"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="300" rx="22" fill="url(#bg)"/>
+  <g stroke="#e8743b" stroke-linecap="round" opacity="0.6" stroke-width="5">
+    <line x1="860" y1="145" x2="860" y2="155"/>
+    <line x1="878" y1="128" x2="878" y2="172"/>
+    <line x1="896" y1="104" x2="896" y2="196"/>
+    <line x1="914" y1="122" x2="914" y2="178"/>
+    <line x1="932" y1="86" x2="932" y2="214"/>
+    <line x1="950" y1="112" x2="950" y2="188"/>
+    <line x1="968" y1="132" x2="968" y2="168"/>
+    <line x1="986" y1="96" x2="986" y2="204"/>
+    <line x1="1004" y1="120" x2="1004" y2="180"/>
+    <line x1="1022" y1="138" x2="1022" y2="162"/>
+    <line x1="1040" y1="110" x2="1040" y2="190"/>
+    <line x1="1058" y1="130" x2="1058" y2="170"/>
+    <line x1="1076" y1="144" x2="1076" y2="156"/>
+  </g>
+  <g stroke="#9aab64" stroke-linecap="round" opacity="0.75" stroke-width="5">
+    <line x1="1094" y1="124" x2="1094" y2="176"/>
+    <line x1="1112" y1="100" x2="1112" y2="200"/>
+    <line x1="1130" y1="130" x2="1130" y2="170"/>
+    <line x1="1148" y1="142" x2="1148" y2="158"/>
+  </g>
+  <circle cx="150" cy="150" r="110" fill="url(#glow)"/>
+  <circle cx="150" cy="150" r="72" fill="url(#orb)"/>
+  <path d="M150 178a17 17 0 0 0 17-17v-34a17 17 0 0 0-34 0v34a17 17 0 0 0 17 17zm28-17a28 28 0 0 1-56 0h-11a39 39 0 0 0 33 38.6V211h12v-11.4A39 39 0 0 0 189 161z" fill="#1b120c"/>
+  <text x="270" y="132" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="58" font-weight="700" fill="#f1e9e1">BistroVoice</text>
+  <text x="272" y="176" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="22" fill="#a69688">Real-time voice host that books tables by calling tools</text>
+  <text x="272" y="208" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="22" fill="#a69688">and never guesses an allergen.</text>
+</svg>
