@@ -35,12 +35,16 @@ LINES = [
     "I'd like to speak to a manager please.",
     "Table for six on Saturday at seven fifteen, please.",
     "Is the trofie al pesto vegetarian?",
+    # Both misheard as "not free" in the first voice evaluation:
+    "Is the sticky toffee pudding nut free?",
+    "Which of your desserts are nut free?",
 ]
 # What must survive transcription for the agent to act correctly.
 KEY_FACTS = [["four|4", r"7[:.]?30|seven thirty"], ["pesto", "nuts"], ["priya", r"07700 ?900 ?456"],
              ["yes"], ["two|2", "friday", r"at (eight|8)"], ["sticky toffee", "nut"], ["dessert"],
              [r"9[:.]30|half[- ]past (nine|9)|nine thirty"], ["calamari", "shellfish"], ["manager"],
-             ["six|6", "saturday", r"7[:.]?15|seven fifteen"], ["trofie", "pesto"]]
+             ["six|6", "saturday", r"7[:.]?15|seven fifteen"], ["trofie", "pesto"],
+             ["sticky toffee", r"nut[- ]free"], ["dessert", r"nut[- ]free"]]
 
 
 def words(text: str) -> list[str]:
@@ -68,10 +72,11 @@ def main() -> None:
             audio.append((voice, line, spk.to_16k(spk.synthesize(line).wav)))
 
     results = {}
-    configs = [("tiny.en", True), ("base.en", False), ("base.en", True), ("small.en", True)]
-    for model, use_hint in configs:
-        name = f"{model}{' + menu hint' if use_hint else ''}"
-        stt = Transcriber(model, hint=hint if use_hint else "")
+    configs = [("tiny.en", True, 1), ("base.en", False, 1), ("base.en", True, 1),
+               ("base.en", True, 5), ("small.en", True, 1)]
+    for model, use_hint, beam in configs:
+        name = f"{model}{' + prompt' if use_hint else ''}, beam {beam}"
+        stt = Transcriber(model, hint=hint if use_hint else "", beam_size=beam)
         stt.transcribe(audio[0][2])  # warm-up
         errs, ms, facts, confs, rtf = [], [], [], [], []
         for i, (_voice, line, pcm) in enumerate(audio):

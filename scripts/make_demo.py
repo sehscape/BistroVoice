@@ -55,8 +55,10 @@ def _wrap(text: str, width: int = 70) -> str:
 
 
 def render(scenario_id: str, caller: Speaker, agent: Speaker) -> None:
-    rows = [json.loads(x) for x in (ROOT / "eval/results/voice/scenarios.jsonl").read_text(
-        encoding="utf-8").splitlines()]
+    path = ROOT / "eval/results/voice/scenarios.jsonl"
+    if not path.exists():  # a run still in progress
+        path = ROOT / "runs/voice.jsonl"
+    rows = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines()]
     sc = next(r for r in rows if r["id"] == scenario_id)
     pieces, subs, t = [], [], 0.6
     silence = np.zeros(int(RATE * GAP), dtype=np.int16)

@@ -56,3 +56,10 @@ def test_call_matching_normalises_arguments():
     assert call_matches(exp, bad) == (True, False)
     phone = {"name": "create_reservation", "args": {"phone": "07700900201"}}
     assert call_matches(phone, {"name": "create_reservation", "args": {"phone": "+44 7700 900201"}}) == (True, True)
+
+
+def test_none_of_the_14_counts_as_absent():
+    r = ["The Lemon Sorbet contains none of the 14 major allergens. Our kitchen handles all 14."]
+    assert allergen_verdict(r, "Lemon Sorbet", "dairy", "absent") == "correct"
+    assert allergen_verdict(r, "Lemon Sorbet", "dairy", "contains") == "made_up"
+    assert allergen_verdict(r, "Lemon Sorbet", "dairy", "unconfirmed") == "made_up"

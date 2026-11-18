@@ -217,13 +217,16 @@ def score(sc: dict, run: dict) -> dict:
     unwanted = []
     if want == "none" and run["new_reservations"]:
         unwanted.append("booking")
+    # A booking was written but with details the caller didn't ask for.
+    wrong_booking = bool(run["new_reservations"]) and (
+        want == "none" or not checks.get("booking_correct", False))
     if handoff_called and not exp.get("handoff", False):
         unwanted.append("handoff")
 
     return {
         "id": sc["id"], "category": sc["category"], "title": sc["title"],
         "passed": all(checks.values()), "checks": checks, "allergen": allergen,
-        "tools": tool_results, "unwanted_actions": unwanted,
+        "tools": tool_results, "unwanted_actions": unwanted, "wrong_booking": wrong_booking,
         "handoff_expected": bool(exp.get("handoff", False)), "handoff_called": handoff_called,
         "turns": turns, "new_reservations": run["new_reservations"],
     }
@@ -260,6 +263,7 @@ def summarise(results: list[dict], mode: str, model: str, guards: bool) -> dict:
         "tool_arguments": round(sum(t["args_ok"] for t in tools) / max(1, len(tools)), 3),
         "expected_tool_calls": len(tools),
         "unwanted_actions": sum(len(r["unwanted_actions"]) for r in results),
+        "wrong_bookings": sum(r["wrong_booking"] for r in results),
         "handoff_accuracy": round(sum(r["handoff_called"] == r["handoff_expected"] for r in results)
                                   / len(results), 3),
         "handoff_precision": round(tp / max(1, tp + fp), 3),
@@ -314,6 +318,8 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--no-guards", action="store_true")
     ap.add_argument("--tag", default="")
     ap.add_argument("--model", default="")
+    ap.add_argument("--rescore", action="store_true",
+                    help="re-grade the saved transcripts of --tag with the current checks (no LLM, no audio)")
     args = ap.parse_args(argv)
 
     settings = Settings.from_env()
@@ -326,12 +332,15 @@ def main(argv: list[str] | None = None) -> None:
     if args.category:
         scenarios = [s for s in scenarios if args.category in s["category"]]
 
-    llm = LLMClient(settings, cache_path=ROOT / "runs" / "llm_cache.sqlite", max_wait_s=90)
-    voice = Voice(settings) if args.mode == "voice" else None
     guards = not args.no_guards
     tag = args.tag or f"{args.mode}{'' if guards else '-no-guards'}"
     out_dir = ROOT / "eval" / "results" / tag
     out_dir.mkdir(parents=True, exist_ok=True)
+    if args.rescore:
+        return rescore(scenarios, tag, out_dir, settings.llm_model, args.mode, guards)
+
+    llm = LLMClient(settings, cache_path=ROOT / "runs" / "llm_cache.sqlite", max_wait_s=90)
+    voice = Voice(settings) if args.mode == "voice" else None
 
     results = []
     live = (ROOT / "runs" / f"{tag}.jsonl").open("w", encoding="utf-8")  # inspect while it runs
@@ -349,10 +358,25 @@ def main(argv: list[str] | None = None) -> None:
         mark = "pass" if r["passed"] else "FAIL " + ", ".join(k for k, v in r["checks"].items() if not v)
         print(f"[{i + 1:2}/{len(scenarios)}] {sc['id']} {sc['title'][:38]:38} {mark}", flush=True)
 
-    if not results:
-        return
-    summary = summarise(results, args.mode, settings.llm_model, guards)
-    summary["complete"] = len(results) == len(scenarios)
+    if results:
+        save(results, len(scenarios), out_dir, settings.llm_model, args.mode, guards)
+
+
+def rescore(scenarios, tag, out_dir, model, mode, guards) -> None:
+    """Grade saved transcripts again, e.g. after fixing a bug in a check."""
+    src = out_dir / "scenarios.jsonl"
+    if not src.exists():
+        src = ROOT / "runs" / f"{tag}.jsonl"
+    saved = {r["id"]: r for r in map(json.loads, src.read_text(encoding="utf-8").splitlines())}
+    conn = build_database(":memory:")
+    ctx = ToolContext(conn=conn, rules=load_rules(conn), clock=lambda: NOW)
+    results = [score(sc, {**saved[sc["id"]], "ctx": ctx}) for sc in scenarios if sc["id"] in saved]
+    save(results, len(scenarios), out_dir, model, mode, guards)
+
+
+def save(results, total, out_dir, model, mode, guards) -> None:
+    summary = summarise(results, mode, model, guards)
+    summary["complete"] = len(results) == total
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     with (out_dir / "scenarios.jsonl").open("w", encoding="utf-8") as f:
         for r in results:

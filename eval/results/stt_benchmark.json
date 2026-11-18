@@ -1,34 +1,42 @@
 {
-  "tiny.en + menu hint": {
-    "wer": 0.126,
-    "key_facts_kept": "15/24",
-    "p50_ms": 578,
-    "max_ms": 625,
-    "real_time_factor": 0.27,
-    "mean_confidence": 0.826
-  },
-  "base.en": {
-    "wer": 0.11,
-    "key_facts_kept": "17/24",
-    "p50_ms": 1019,
-    "max_ms": 1083,
-    "real_time_factor": 0.482,
-    "mean_confidence": 0.842
-  },
-  "base.en + menu hint": {
-    "wer": 0.094,
-    "key_facts_kept": "20/24",
-    "p50_ms": 1106,
-    "max_ms": 1206,
-    "real_time_factor": 0.522,
+  "tiny.en + prompt, beam 1": {
+    "wer": 0.108,
+    "key_facts_kept": "19/28",
+    "p50_ms": 312,
+    "max_ms": 401,
+    "real_time_factor": 0.154,
     "mean_confidence": 0.878
   },
-  "small.en + menu hint": {
-    "wer": 0.068,
-    "key_facts_kept": "21/24",
-    "p50_ms": 3545,
-    "max_ms": 3927,
-    "real_time_factor": 1.661,
-    "mean_confidence": 0.897
+  "base.en, beam 1": {
+    "wer": 0.117,
+    "key_facts_kept": "22/28",
+    "p50_ms": 728,
+    "max_ms": 933,
+    "real_time_factor": 0.368,
+    "mean_confidence": 0.854
+  },
+  "base.en + prompt, beam 1": {
+    "wer": 0.085,
+    "key_facts_kept": "27/28",
+    "p50_ms": 825,
+    "max_ms": 883,
+    "real_time_factor": 0.404,
+    "mean_confidence": 0.888
+  },
+  "base.en + prompt, beam 5": {
+    "wer": 0.088,
+    "key_facts_kept": "27/28",
+    "p50_ms": 1016,
+    "max_ms": 1311,
+    "real_time_factor": 0.505,
+    "mean_confidence": 0.892
+  },
+  "small.en + prompt, beam 1": {
+    "wer": 0.062,
+    "key_facts_kept": "26/28",
+    "p50_ms": 2468,
+    "max_ms": 2727,
+    "real_time_factor": 1.226,
+    "mean_confidence": 0.898
   }
 }

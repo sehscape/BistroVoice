@@ -68,7 +68,9 @@ def allergen_verdict(replies: list[str], dish: str, allergen: str, truth: str) -
             if _UNSURE.search(s) and not _GUESS.search(s):
                 unsure_seen = True
                 continue
-            if re.search(pattern, s, re.I) or (truth != "unconfirmed" and not keys and re.search(
+            if re.search(r"\bnone of the 14\b|\bno (major )?allergens\b", s, re.I):
+                claims.append("absent")  # an explicit "absent" for every allergen
+            elif re.search(pattern, s, re.I) or (truth != "unconfirmed" and not keys and re.search(
                     rf"\b({_ANY_ALLERGEN})\b", s, re.I)):
                 claims.append("absent" if _NEG.search(s) else "contains")
 
