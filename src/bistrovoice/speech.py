@@ -253,20 +253,31 @@ class Speaker:
         path = PIPER_DIR / f"{voice}.onnx"
         if not path.exists():
             raise FileNotFoundError(f"{path} missing: run `bistrovoice download-models`")
-        self.voice = PiperVoice.load(path)
         threads = int(os.getenv("TTS_THREADS", "0"))
-        if threads:
-            # On a tiny CPU share (Render free: 0.1 CPU) ONNX Runtime's default
-            # thread pool and spin-waiting fight over the quota: 16 s for one
-            # sentence. One thread, no spinning.
+        if not threads:
+            self.voice = PiperVoice.load(path)
+        else:
+            # Small hosts (Render free: 0.1 CPU, 512 MB). ONNX Runtime's default
+            # thread pool and spin-waiting fight over the CPU quota (16 s for one
+            # sentence), and its memory arena keeps the peak of every sentence
+            # (576 MB measured, over the limit). One thread, no spinning, no arena,
+            # and only one session loaded.
+            import json
+
             import onnxruntime
+            from piper.config import PiperConfig
 
             opts = onnxruntime.SessionOptions()
             opts.intra_op_num_threads = threads
             opts.inter_op_num_threads = 1
+            opts.enable_cpu_mem_arena = False
+            opts.enable_mem_pattern = False
             opts.add_session_config_entry("session.intra_op.allow_spinning", "0")
-            self.voice.session = onnxruntime.InferenceSession(
-                str(path), sess_options=opts, providers=["CPUExecutionProvider"])
+            config = json.loads(Path(f"{path}.json").read_text(encoding="utf-8"))
+            self.voice = PiperVoice(
+                session=onnxruntime.InferenceSession(str(path), sess_options=opts,
+                                                     providers=["CPUExecutionProvider"]),
+                config=PiperConfig.from_dict(config))
         self.config = SynthesisConfig(length_scale=length_scale)
         self.sample_rate = self.voice.config.sample_rate
         self._lock = threading.Lock()

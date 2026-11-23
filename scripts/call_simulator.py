@@ -73,14 +73,15 @@ class Caller:
 
 async def main(url: str) -> None:
     voice = Speaker(CALLER_VOICES[0])
-    async with websockets.connect(url, max_size=None) as ws:
+    # open_timeout: a free-tier host may need up to a minute to wake up
+    async with websockets.connect(url, max_size=None, open_timeout=90) as ws:
         ready = json.loads(await ws.recv())
         print(f"connected: {ready}")
         while json.loads(await ws.recv())["type"] != "bookings":
             pass
         caller = Caller(ws, voice)
 
-        await caller.say("Can I reserve a table for four people at 7:30 tonight? "
+        await caller.say("Can I reserve a table for four people on Thursday at 7:30pm? "
                          "Also, does the pesto contain nuts? I'm allergic.")
         await caller.listen()
 
