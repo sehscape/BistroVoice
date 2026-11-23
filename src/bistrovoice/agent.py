@@ -419,8 +419,9 @@ class Agent:
                                "Ask for it. Never make one up."}
 
         p = self.pending
-        if (p and p.args == details and p.turn < self.turn_no
-                and guardrails.is_affirmative(user_text)):
+        if guardrails.is_affirmative(user_text) and (
+                (p and p.args == details and p.turn < self.turn_no)
+                or self._last_reply_read_back(details)):
             return run_tool(self.ctx, "create_reservation", details)
 
         check = run_tool(self.ctx, "check_table_availability",
@@ -437,6 +438,31 @@ class Agent:
                         f"name {details['name']}, phone {_phone_for_speech(details['phone'])}. "
                         "Ask the customer to confirm. Book only after they say yes."),
         }
+
+    def _last_reply_read_back(self, details: dict) -> bool:
+        """Did the reply the caller just heard spell out every detail being booked?
+
+        The model sometimes writes its own read-back instead of calling the tool.
+        If code can find each detail in what the caller heard just before their
+        "yes", that read-back counts; otherwise a code-worded one is required.
+        """
+        if not self.turns or self.turns[-1][-1].get("role") != "assistant":
+            return False
+        heard = (self.turns[-1][-1].get("content") or "").lower()
+        if "cut off" in heard or "interrupted" in heard:
+            return False
+        day = parse_date(details["date"], self.ctx.now().date())
+        at = parse_time(details["time"])
+        squashed = re.sub(r"[\s.]", "", heard)
+        number_words = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight"]
+        checks = [
+            details["name"].lower() in heard,
+            details["phone"][-6:] in re.sub(r"\D", "", heard),
+            WEEKDAYS[day.weekday()].lower() in heard or re.search(rf"\b{day.day}\b", heard),
+            spoken_time(at) in squashed or at.strftime("%H:%M") in heard,
+            re.search(rf"\b({details['party_size']}|{number_words[details['party_size']]})\b", heard),
+        ]
+        return all(checks)
 
     def _is_plain_yes(self, text: str) -> bool:
         p = self.pending

@@ -188,39 +188,34 @@ Full transcripts: [`eval/results/voice/scenarios.jsonl`](eval/results/voice/scen
 </details>"""
 
 
-def compare_block(run2: dict) -> str:
-    """Run 1 (before the fixes it led to) against run 2, on the same calls."""
+def compare_block(final: dict) -> str:
+    """Each evaluation run on its own calls: how the fixes between runs changed things."""
     sys.path.insert(0, str(ROOT))
     from eval.run_eval import summarise  # noqa: PLC0415
 
-    path = RESULTS / "voice-run1" / "scenarios.jsonl"
-    if not path.exists():
-        return ""
-    run1 = {r["id"]: r for r in map(json.loads, path.read_text(encoding="utf-8").splitlines())}
-    same = [i for i in run1 if i in run2]
-    a = summarise([run1[i] for i in same], "voice", "", True)
-    b = summarise([run2[i] for i in same], "voice", "", True)
-    c = summarise(list(run2.values()), "voice", "", True)
-
-    full = len(run2) > len(same)  # show "all calls" only when run 2 got further than run 1
+    runs = []
+    for label, tag in (("Run 1", "voice-run1"), ("Run 2", "voice-run2")):
+        path = RESULTS / tag / "scenarios.jsonl"
+        if path.exists():
+            rows = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines()]
+            runs.append((f"{label} ({len(rows)} calls)", summarise(rows, "voice", "", True)))
+    runs.append((f"**Run 3, final** ({len(final)} calls)", summarise(list(final.values()), "voice", "", True)))
 
     def row(label, key, fmt):
-        return f"| {label} | {fmt(a[key])} | {fmt(b[key])} |" + (f" {fmt(c[key])} |" if full else "")
+        return f"| {label} | " + " | ".join(fmt(s[key]) for _, s in runs) + " |"
 
-    sec = lambda v: f"{v['first_audio_ms']['p50'] / 1000:.1f} s"  # noqa: E731
+    sec = lambda s: f"{s['latency_ms']['first_audio_ms']['p50'] / 1000:.1f} s"  # noqa: E731
     return "\n".join([
-        f"| | Run 1, {len(same)} calls (before) | Run 2, same {len(same)} calls |"
-        + (f" Run 2, all {len(run2)} calls |" if full else ""),
-        "|---|---|---|" + ("---|" if full else ""),
+        "| | " + " | ".join(name for name, _ in runs) + " |",
+        "|---|" + "---|" * len(runs),
         row("Task completion", "task_completion", pct),
         row("Tool selection", "tool_selection", pct),
         row("Tool arguments", "tool_arguments", pct),
         row("Handoff accuracy", "handoff_accuracy", pct),
         row("Made-up allergen answers heard", "made_up_allergen_answers", str),
-        row("Wrong bookings", "wrong_bookings", str),
+        row("**Wrong bookings**", "wrong_bookings", str),
         row("Caller had to repeat a line", "caller_repeats", str),
-        f"| First audio, p50 | {sec(a['latency_ms'])} | {sec(b['latency_ms'])} |"
-        + (f" {sec(c['latency_ms'])} |" if full else ""),
+        "| First audio, p50 | " + " | ".join(sec(s) for _, s in runs) + " |",
     ])
 
 

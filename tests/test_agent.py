@@ -302,3 +302,23 @@ def test_declining_a_person_is_not_a_request():
     assert asks_for_a_person("Yes, could you connect me please?")
     assert not asks_for_a_person("No thanks, I don't need to speak to a person.")
     assert not asks_for_a_person("Is the pesto nut free?")
+
+
+def test_a_complete_readback_written_by_the_model_counts(ctx):
+    # Evaluation B01: the model read the details back itself instead of calling the
+    # tool. Every detail was in what the caller heard, so their "yes" books it.
+    llm = ScriptedLLM(say("Just to confirm: a table for 4 on Wednesday 18 November at 7:30 pm, under the name "
+                          "Sam Lee, phone 07700 900555. Shall I book it?"),
+                      call("create_reservation", **BOOKING))
+    agent = Agent(ctx, llm)
+    agent.respond("Sam Lee, 07700 900555")
+    t = agent.respond("Yes, that's right.")
+    assert t.tool_calls[0].result["status"] == "booked" and rows(ctx) == 1
+
+
+def test_an_incomplete_readback_still_needs_the_code_readback(ctx):
+    llm = ScriptedLLM(say("Lovely, shall I book that for you?"), call("create_reservation", **BOOKING))
+    agent = Agent(ctx, llm)
+    agent.respond("Sam Lee, 07700 900555, four people tonight at 7:30")
+    t = agent.respond("Yes, that's right.")
+    assert t.tool_calls[0].result["status"] == "needs_confirmation" and rows(ctx) == 0
