@@ -71,13 +71,21 @@ class Caller:
                 return seen
 
 
+async def next_text(ws) -> dict:
+    """Next JSON message, skipping any audio frames in between."""
+    while True:
+        msg = await ws.recv()
+        if isinstance(msg, str):
+            return json.loads(msg)
+
+
 async def main(url: str) -> None:
     voice = Speaker(CALLER_VOICES[0])
     # open_timeout: a free-tier host may need up to a minute to wake up
     async with websockets.connect(url, max_size=None, open_timeout=90) as ws:
         ready = json.loads(await ws.recv())
         print(f"connected: {ready}")
-        while json.loads(await ws.recv())["type"] != "bookings":
+        while (await next_text(ws))["type"] != "bookings":
             pass
         caller = Caller(ws, voice)
 
@@ -90,8 +98,8 @@ async def main(url: str) -> None:
         await caller.listen(stop_after_first_audio=True)
         await ws.send(json.dumps({"type": "interrupt", "heard": 0}))
         print("  (caller talks over the read-back)")
-        while json.loads(await ws.recv()).get("state") != "interrupted":
-            pass
+        while (await next_text(ws)).get("state") != "interrupted":
+            pass  # audio already on its way is skipped
 
         await caller.say("Yes, that's right.")
         turn = await caller.listen()

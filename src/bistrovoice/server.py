@@ -17,6 +17,7 @@ Protocol (one WebSocket per call)
 from __future__ import annotations
 
 import asyncio
+import os
 import json
 import logging
 import time
@@ -79,10 +80,29 @@ async def index():
     return FileResponse(WEB_DIR / "index.html")
 
 
+STARTED = time.time()
+
+
+def _peak_memory_mb() -> float | None:
+    try:
+        import resource  # Linux / macOS only
+    except ImportError:
+        return None
+    return round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, 1)
+
+
 @app.get("/api/health")
 async def health():
     s = services.settings if services else Settings.from_env()
-    return {"ok": services is not None, "stt": s.stt_model, "tts": s.tts_voice, "llm": s.llm_model}
+    return {
+        "ok": services is not None,
+        "stt": s.stt_model if s.stt_backend == "local" else "whisper-large-v3-turbo (Groq)",
+        "tts": s.tts_voice, "llm": s.llm_model,
+        # For checking a deployment: which commit is running, since when, peak memory.
+        "version": os.getenv("RENDER_GIT_COMMIT", "local")[:7],
+        "uptime_s": round(time.time() - STARTED),
+        "peak_memory_mb": _peak_memory_mb(),
+    }
 
 
 class Call:

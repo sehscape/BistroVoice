@@ -227,7 +227,7 @@ sharing code with the guardrail, so a bug in one can't hide in the other.
 
 | Failure | What the caller experiences | How | Tested by |
 |---|---|---|---|
-| **Caller interrupts** | The agent stops mid-word | The browser stops playback at once and sends `interrupt` with the number of sentences heard in full. The server cancels the turn. The history records only what was heard. **An interrupted booking read-back no longer counts**: a "yes" afterwards gets a fresh read-back | [`scripts/call_simulator.py`](scripts/call_simulator.py) (barges in on a real read-back over the WebSocket) · unit tests |
+| **Caller interrupts** | The agent stops mid-word | The browser stops playback at once and sends `interrupt` with the number of sentences heard in full. The server cancels the turn. The history records only what was heard. **An interrupted booking read-back no longer counts**: a "yes" afterwards gets a fresh read-back | [`scripts/call_simulator.py`](scripts/call_simulator.py): streams spoken audio over the WebSocket, talks over the read-back, then says "yes" → read back again, not booked; "yes" to the heard read-back → booked. Passes on the final code locally and on the live Render deployment · unit tests |
 | **Misheard input** | "Sorry, I didn't quite catch that" or a short question | Whisper confidence below 0.40 never reaches the LLM. Confident-but-odd text ("a cable for bore") → the LLM is told to ask, not guess. Wrong numbers fail validation (a 14-digit phone). A weekday that doesn't match the date is sent back. Wrong-but-valid details are caught by the read-back. Names/phones the caller never said are refused | M01-M06 |
 | **Time unavailable** | "We don't have four at 7:30pm, but we do at 9pm, 9:15pm or 5:30pm" | Code scans the day for the nearest free 15-minute slots, then the next open days. Closed days and times after last seating also get bookable suggestions | U01-U07 |
 | **Tool or database failure** | An apology and an offer of a person, never "you're booked" | The executor turns any exception into `system_unavailable`. The reply check removes booking/handoff claims that didn't happen and adds an apology if missing. If the handoff itself fails, the caller gets the restaurant's number. If the LLM is down, code answers with a fixed apology. A malformed tool call is not an outage: it is re-sampled, then the caller is asked to repeat | F01-F06 |
@@ -582,7 +582,8 @@ first audio 1.5 s after a typed question).
 this repo and paste the Groq key. A free instance has a tenth of a CPU, where local Whisper would take ~10 s
 per sentence, so the hosted demo sets `STT_BACKEND=groq` (Whisper large-v3-turbo on the same free Groq key).
 Piper still runs inside the container, on a single thread (`TTS_THREADS=1`): with ONNX Runtime's default
-thread pool one sentence took 16 s there. Locally and in the evaluation, speech-to-text is always faster-whisper.
+thread pool one sentence took 16 s there. The same setting turns off ONNX Runtime's memory arena: a live call
+was dropped when memory peaked at 576 MB, over the free tier's 512 MB; it now peaks at about 306 MB. Locally and in the evaluation, speech-to-text is always faster-whisper.
 The free instance sleeps after 15 minutes idle; the first visit wakes it in about a minute.
 
 ## Project layout

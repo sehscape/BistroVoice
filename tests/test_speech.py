@@ -40,11 +40,15 @@ def test_london_number():
     assert for_speech("call us on 020 7946 0321.") == "call us on 0 2 0, 7 9 4 6, 0 3 2 1."
 
 
-def test_long_first_sentence_starts_with_a_short_clause():
+def test_long_sentences_are_spoken_in_short_pieces():
     from bistrovoice.speech import Speaker
 
-    split = Speaker.sentences(None, "I'm sorry, I can't confirm the allergens in the Sticky Toffee Pudding "
-                                    "right now, so I won't guess. I can connect you.")
-    assert split == ["I'm sorry,", "I can't confirm the allergens in the Sticky Toffee Pudding right now, "
-                     "so I won't guess.", "I can connect you."]
+    assert Speaker.sentences(None, "I'm sorry, I can't confirm the allergens in the Sticky Toffee Pudding "
+                                   "right now, so I won't guess. I can connect you.") == [
+        "I'm sorry,", "I can't confirm the allergens in the Sticky Toffee Pudding right now,",
+        "so I won't guess.", "I can connect you."]
+    assert Speaker.sentences(None, "Just to confirm: a table for 4 on Thursday 26 November at 7:30pm, under "
+                                   "the name Lucy Brennan, phone 07700 900211. Shall I book that?") == [
+        "Just to confirm: a table for 4 on Thursday 26 November at 7:30pm,",
+        "under the name Lucy Brennan, phone 07700 900211.", "Shall I book that?"]
     assert Speaker.sentences(None, "Yes, that's booked.") == ["Yes, that's booked."]
