@@ -16,7 +16,7 @@ by calling tools. It never guesses an allergen and never books what the caller d
 ![Tests](https://img.shields.io/badge/tests-86%20passing-brightgreen)
 ![Cost](https://img.shields.io/badge/running%20cost-%C2%A30-brightgreen)
 
-[**Demo video**](docs/demo/T01.mp4) · [Results](#results) · [Architecture](#architecture) ·
+[**Live demo**](https://bistrovoice.onrender.com/) · [**Demo video**](docs/demo/T01.mp4) · [Results](#results) · [Architecture](#architecture) ·
 [Does every part need an LLM?](#does-every-part-of-the-problem-need-an-llm) · [Run it](#run-it-yourself)
 
 </div>
@@ -574,10 +574,15 @@ Want it fully offline? Point `LLM_BASE_URL` at Ollama (`http://localhost:11434/v
 
 ## Free hosting
 
+**Live: https://bistrovoice.onrender.com/** (free tier: the first visit after 15 idle minutes takes about a
+minute to wake up, and replies are slower than on a laptop because the server gets a tenth of a CPU; measured after deploying:
+first audio 1.5 s after a typed question).
+
 [`render.yaml`](render.yaml) deploys the app to Render's free plan (Docker, no card): *New → Blueprint →* pick
 this repo and paste the Groq key. A free instance has a tenth of a CPU, where local Whisper would take ~10 s
 per sentence, so the hosted demo sets `STT_BACKEND=groq` (Whisper large-v3-turbo on the same free Groq key).
-Piper still runs inside the container. Locally and in the evaluation, speech-to-text is always faster-whisper.
+Piper still runs inside the container, on a single thread (`TTS_THREADS=1`): with ONNX Runtime's default
+thread pool one sentence took 16 s there. Locally and in the evaluation, speech-to-text is always faster-whisper.
 The free instance sleeps after 15 minutes idle; the first visit wakes it in about a minute.
 
 ## Project layout
