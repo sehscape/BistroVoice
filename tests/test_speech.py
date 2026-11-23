@@ -34,3 +34,7 @@ def test_model_output_is_tidied_before_speaking():
     assert tidy(raw) == "Sure! We're open at 12 pm, see you. Bring friends"
     assert tidy("It's 11 digits.And the date?") == "It's 11 digits. And the date?"
     assert tidy("It costs 7.50 pounds.") == "It costs 7.50 pounds."
+
+
+def test_london_number():
+    assert for_speech("call us on 020 7946 0321.") == "call us on 0 2 0, 7 9 4 6, 0 3 2 1."

@@ -254,3 +254,51 @@ def test_provider_errors_are_logged_as_a_category_only(ctx):
 
     t = Agent(ctx, Limited()).respond("Hi")
     assert t.guard_events == ["llm_error: rate limited"]
+
+
+def test_a_readback_the_caller_moved_past_cannot_be_confirmed(ctx):
+    # Evaluation M05: read-back Friday, "No, I said Thursday", the model asks its
+    # own question without a new read-back, then "Yes" must NOT book Friday.
+    friday = {**BOOKING, "date": "2026-11-20", "time": "13:00"}
+    llm = ScriptedLLM(call("create_reservation", **friday),
+                      call("check_table_availability", date="2026-11-19", time="13:00", party_size=4),
+                      say("Thursday 1pm is free. Shall I book it for Sam Lee?"),
+                      call("create_reservation", **{**friday, "date": "2026-11-19"}))
+    agent = Agent(ctx, llm)
+    agent.respond("Sam Lee, 07700 900555, Friday at 1pm for four")
+    agent.respond("No, I said Thursday, not Friday.")
+    t = agent.respond("Yes, that's right.")
+    assert rows(ctx) == 0  # nothing booked: Thursday hasn't been read back yet
+    assert t.tool_calls[-1].result["status"] == "needs_confirmation"
+    assert "Thursday 19 November" in t.reply
+
+
+def test_failed_handoff_gives_the_restaurant_number(ctx):
+    ctx.faults.add("handoff_to_staff")
+    llm = ScriptedLLM(call("handoff_to_staff", reason="manager"))
+    t = Agent(ctx, llm).respond("Can I speak to a manager please?")
+    assert "020 7946 0321" in t.reply and "member of" not in t.reply
+
+
+def test_allergen_outage_is_said_plainly(ctx):
+    ctx.faults.add("get_allergen_info")
+    llm = ScriptedLLM(call("get_allergen_info", dish="pesto", allergen="nuts"),
+                      say("I'm sorry, I couldn't get that information."))
+    t = Agent(ctx, llm).respond("Does the pesto contain nuts? I'm allergic.")
+    assert "can't check allergen information right now, so I won't guess" in t.reply
+
+
+def test_explicit_request_for_a_person_is_honoured(ctx):
+    llm = ScriptedLLM(say("Could I take your phone number first?"))
+    t = Agent(ctx, llm).respond("Yes, please put me through.")
+    assert t.tool_calls[-1].name == "handoff_to_staff" and t.tool_calls[-1].forced
+    assert t.reply.startswith("I've passed you to a member of our team")
+
+
+def test_declining_a_person_is_not_a_request():
+    from bistrovoice.guardrails import asks_for_a_person
+
+    assert asks_for_a_person("Could I speak to a real person please?")
+    assert asks_for_a_person("Yes, could you connect me please?")
+    assert not asks_for_a_person("No thanks, I don't need to speak to a person.")
+    assert not asks_for_a_person("Is the pesto nut free?")

@@ -173,7 +173,9 @@ def score(sc: dict, run: dict) -> dict:
             checks["reference_given"] = str(rows[0]["reservation_id"]) in text
 
     # handoff
-    handoff_called = any(c["name"] == "handoff_to_staff" for c in llm_calls)
+    # The system's decision, whoever made the call (the LLM, or code honouring
+    # an explicit "put me through").
+    handoff_called = any(c["name"] == "handoff_to_staff" for t in turns for c in t["tool_calls"])
     checks["handoff_decision"] = handoff_called == bool(exp.get("handoff", False))
 
     # allergen answers

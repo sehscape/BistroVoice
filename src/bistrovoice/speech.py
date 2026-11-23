@@ -199,6 +199,8 @@ def for_speech(text: str) -> str:
     t = text
     # phone numbers: read digit by digit, grouped
     t = _SPOKEN_DIGITS.sub(lambda m: _digits(m.group().replace(" ", ""), (5, 3, 3)), t)
+    # London landlines: "020 7946 0321" -> "0 2 0, 7 9 4 6, 0 3 2 1"
+    t = re.sub(r"\b0\d{2} \d{4} \d{4}\b", lambda m: _digits(m.group().replace(" ", ""), (3, 4, 4)), t)
     # booking references: "reference 1028" -> "reference 1 0 2 8"
     t = re.sub(r"(reference(?: number)?(?: is)?:?\s*)(\d{3,6})\b",
                lambda m: m.group(1) + " ".join(m.group(2)), t, flags=re.I)

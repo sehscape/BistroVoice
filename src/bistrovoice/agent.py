@@ -202,6 +202,13 @@ class Agent:
         self.turn_no += 1
         result = TurnResult(user_text=user_text, reply="")
 
+        # A read-back only counts while it is the last thing the caller heard.
+        # Found by the evaluation (M05): read-back "Friday", caller "No, I said
+        # Thursday", the model asked its own question without a new read-back,
+        # caller "Yes" -> the old Friday details were booked.
+        if self.pending and self.pending.turn < self.turn_no - 1:
+            self.pending = None
+
         # Never act on doubtful input: a low-confidence transcript gets a
         # clarifying question and is not shown to the LLM at all.
         if self.guards and (not user_text.strip() or
@@ -268,6 +275,21 @@ class Agent:
             # Only a category: raw provider messages can contain account details.
             result.guard_events.append(f"llm_error: {_error_kind(err)}")
             draft = LLM_DOWN_LINE
+
+        # The caller asked for a person and the model didn't hand over (seen in
+        # the evaluation: "Yes, please put me through" answered with another
+        # question about the phone number). Code does it.
+        if (self.guards and not self.handed_off and guardrails.asks_for_a_person(user_text)
+                and not any(c.name == "handoff_to_staff" for c in result.tool_calls)):
+            start = time.perf_counter()
+            res = run_tool(self.ctx, "handoff_to_staff", {"reason": "caller asked for a member of staff"})
+            record = ToolCallRecord("handoff_to_staff", {"reason": "caller asked for a member of staff"},
+                                    res, (time.perf_counter() - start) * 1000, forced=True)
+            result.tool_calls.append(record)
+            result.tool_ms += record.ms
+            self.handed_off = res.get("status") == "handed_off"
+            draft = self._fixed_reply([record])
+            result.guard_events.append("handoff_requested_by_caller")
 
         result.draft = draft = tidy(draft)
         result.reply = self._check_reply(draft, result) if self.guards else draft
@@ -467,6 +489,10 @@ class Agent:
                     f"{a['name']}. Your reference number is {res['reference']}.")
         if step[0].name == "handoff_to_staff" and res.get("status") == "handed_off":
             return "I've passed you to a member of our team, and they'll be with you shortly."
+        if step[0].name == "handoff_to_staff" and res.get("error") == "system_unavailable":
+            # Offering "a member of staff" again would be the thing that just failed.
+            return ("I'm sorry, I can't put you through right now. Please call us directly on "
+                    f"{self.ctx.rules.phone}.")
         return None
 
     # ------------------------------------------------------------------ reply checks
@@ -477,6 +503,12 @@ class Agent:
         calls = result.tool_calls
         verified = [c.result["say"] for c in calls
                     if c.name == "get_allergen_info" and c.result.get("say")]
+        # The allergen lookup itself failed: the caller must hear plainly that
+        # allergens can't be checked right now (the model once said only "I
+        # couldn't get that information").
+        if not verified and any(c.name == "get_allergen_info"
+                                and c.result.get("error") == "system_unavailable" for c in calls):
+            verified = [ALLERGEN_DOWN_LINE]
 
         # An allergy question must never be dropped. In testing the model once
         # answered the booking half of "...tonight? Also, does the pesto contain
@@ -494,6 +526,11 @@ class Agent:
 
         reply, events = guardrails.enforce_allergen_rule(draft, verified, lookup)
         result.guard_events += events
+        if ALLERGEN_DOWN_LINE in reply:
+            # The plain outage line already apologises; drop the model's vaguer one.
+            vague = re.compile(r"^(i'?m )?sorry,? (but )?i (couldn'?t|could not|can'?t|cannot|wasn'?t able to)"
+                               r" (get|find|check|access|retrieve)\b(?!.*allergen)", re.I)
+            reply = " ".join(s for s in guardrails.split_sentences(reply) if not vague.search(s))
         reply, events = guardrails.enforce_action_claims(
             reply,
             booked=bool(self.bookings),

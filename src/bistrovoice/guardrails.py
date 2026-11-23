@@ -154,6 +154,19 @@ def asks_about_allergens(text: str) -> bool:
         r"\b(contains?|have|has|in it|free|safe|any|without|allergic|intoleran\w*)\b", text, re.I))
 
 
+_PERSON = re.compile(
+    r"\b(put me through|connect me|transfer me|"
+    r"(speak|talk) to (a|an|the|your)? ?(real )?(person|human|manager|member of (your )?staff|staff)|"
+    r"(speak|talk) to (someone|somebody)|a real person|a human)\b",
+    re.I,
+)
+
+
+def asks_for_a_person(text: str) -> bool:
+    """An explicit request to be handed to a member of staff."""
+    return bool(_PERSON.search(text)) and not re.search(r"\b(no|don'?t|not)\b", text, re.I)
+
+
 def is_affirmative(text: str) -> bool:
     """A clear yes, with no "but", "no", "change" or "wait" in it."""
     t = text.lower()
