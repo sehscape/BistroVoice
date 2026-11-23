@@ -322,3 +322,14 @@ def test_an_incomplete_readback_still_needs_the_code_readback(ctx):
     agent.respond("Sam Lee, 07700 900555, four people tonight at 7:30")
     t = agent.respond("Yes, that's right.")
     assert t.tool_calls[0].result["status"] == "needs_confirmation" and rows(ctx) == 0
+
+
+def test_a_misheard_yes_does_not_void_the_readback(ctx):
+    # Evaluation U04: "Yes." heard as "Bass," (low confidence) -> "say that again" ->
+    # "Yeah." must still confirm the read-back the caller heard.
+    llm = ScriptedLLM(call("create_reservation", **BOOKING))
+    agent = Agent(ctx, llm)
+    agent.respond("Sam Lee, 07700 900555")
+    agent.respond("Bass,", confidence=0.38)
+    t = agent.respond("Yeah.")
+    assert t.tool_calls[0].result["status"] == "booked" and rows(ctx) == 1

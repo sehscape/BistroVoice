@@ -218,6 +218,10 @@ class Agent:
             result.guard_events.append(f"asr_low_confidence ({confidence})")
             self.turns.append([{"role": "user", "content": "(inaudible)"},
                                {"role": "assistant", "content": CLARIFY_LINE}])
+            # "Sorry, could you say that again?" adds nothing new, so a read-back
+            # given just before it is still the last real thing the caller heard.
+            if self.pending and self.pending.turn == self.turn_no - 1:
+                self.pending.turn = self.turn_no
             return result
 
         # A short, clear "yes" to a read-back the caller heard: code already
@@ -446,9 +450,12 @@ class Agent:
         If code can find each detail in what the caller heard just before their
         "yes", that read-back counts; otherwise a code-worded one is required.
         """
-        if not self.turns or self.turns[-1][-1].get("role") != "assistant":
+        # The last reply that said something (skip "Sorry, could you say that again?").
+        replies = [t[-1].get("content") or "" for t in self.turns
+                   if t and t[-1].get("role") == "assistant" and t[-1].get("content") != CLARIFY_LINE]
+        if not replies or self.turns[-1][-1].get("content") not in (replies[-1], CLARIFY_LINE):
             return False
-        heard = (self.turns[-1][-1].get("content") or "").lower()
+        heard = replies[-1].lower()
         if "cut off" in heard or "interrupted" in heard:
             return False
         day = parse_date(details["date"], self.ctx.now().date())
