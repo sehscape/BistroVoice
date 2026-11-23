@@ -254,13 +254,32 @@ class Speaker:
         if not path.exists():
             raise FileNotFoundError(f"{path} missing: run `bistrovoice download-models`")
         self.voice = PiperVoice.load(path)
+        threads = int(os.getenv("TTS_THREADS", "0"))
+        if threads:
+            # On a tiny CPU share (Render free: 0.1 CPU) ONNX Runtime's default
+            # thread pool and spin-waiting fight over the quota: 16 s for one
+            # sentence. One thread, no spinning.
+            import onnxruntime
+
+            opts = onnxruntime.SessionOptions()
+            opts.intra_op_num_threads = threads
+            opts.inter_op_num_threads = 1
+            opts.add_session_config_entry("session.intra_op.allow_spinning", "0")
+            self.voice.session = onnxruntime.InferenceSession(
+                str(path), sess_options=opts, providers=["CPUExecutionProvider"])
         self.config = SynthesisConfig(length_scale=length_scale)
         self.sample_rate = self.voice.config.sample_rate
         self._lock = threading.Lock()
 
     def sentences(self, text: str) -> list[str]:
-        parts = re.split(r"(?<=[.!?])\s+", text.strip())
-        return [p for p in parts if p]
+        parts = [p for p in re.split(r"(?<=[.!?])\s+", text.strip()) if p]
+        # Synthesis time grows with length, so a long first sentence delays the
+        # first sound. Speak its opening clause on its own.
+        if parts and len(parts[0]) > 60:
+            head, sep, tail = parts[0].partition(", ")
+            if sep and 8 <= len(head) <= 50:
+                parts[0:1] = [head + ",", tail]
+        return parts
 
     def synthesize(self, text: str) -> SpeechChunk:
         """One WAV for `text` (usually one sentence)."""

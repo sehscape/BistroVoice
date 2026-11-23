@@ -1,12 +1,14 @@
 # Image for the hosted demo (Render free tier).
 # Free instances have ~0.1 CPU, so speech-to-text uses Groq's hosted Whisper
-# (STT_BACKEND=groq). Piper text-to-speech still runs inside the container.
+# (STT_BACKEND=groq). Piper text-to-speech still runs inside the container, on one
+# thread (TTS_THREADS=1): more threads only fight over the tiny CPU share.
 FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     STT_BACKEND=groq \
+    TTS_THREADS=1 \
     LLM_MODEL=openai/gpt-oss-120b
 
 WORKDIR /app
