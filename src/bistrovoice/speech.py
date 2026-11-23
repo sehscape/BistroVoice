@@ -279,6 +279,10 @@ class Speaker:
                                                      providers=["CPUExecutionProvider"]),
                 config=PiperConfig.from_dict(config))
         self.config = SynthesisConfig(length_scale=length_scale)
+        # Piper's decoder buffers grow with the length of audio produced in one
+        # run; a spoken phone number ("0 7 7 0 0, ...") is long. On a 512 MB host
+        # each run is capped at TTS_MAX_CHARS of spoken text (0 = no cap).
+        self.max_chars = int(os.getenv("TTS_MAX_CHARS", "0"))
         self.sample_rate = self.voice.config.sample_rate
         self._lock = threading.Lock()
 
@@ -306,9 +310,11 @@ class Speaker:
     def synthesize(self, text: str) -> SpeechChunk:
         """One WAV for `text` (usually one sentence)."""
         start = time.perf_counter()
+        spoken = for_speech(text)
+        pieces = _pieces(spoken, self.max_chars) if self.max_chars else [spoken]
         with self._lock:
-            pcm = b"".join(c.audio_int16_bytes for c in
-                           self.voice.synthesize(for_speech(text), syn_config=self.config))
+            pcm = b"".join(c.audio_int16_bytes for piece in pieces for c in
+                           self.voice.synthesize(piece, syn_config=self.config))
         buf = io.BytesIO()
         with wave.open(buf, "wb") as w:
             w.setnchannels(1)
@@ -328,6 +334,29 @@ class Speaker:
             n = int(len(audio) * SAMPLE_RATE / rate)
             audio = np.interp(np.linspace(0, len(audio) - 1, n), np.arange(len(audio)), audio)
         return audio.astype(np.float32)
+
+
+def _pieces(text: str, limit: int) -> list[str]:
+    """Split spoken text into runs of at most `limit` characters, at commas, else spaces."""
+    out: list[str] = []
+    for clause in re.split(r"(?<=,)\s+", text):
+        words, current = clause.split(), ""
+        for word in words:
+            joined = f"{current} {word}" if current else word
+            if current and len(joined) > limit:
+                out.append(current)
+                current = word
+            else:
+                current = joined
+        if current:
+            out.append(current)
+    merged: list[str] = []  # put short clauses back together up to the limit
+    for p in out:
+        if merged and len(merged[-1]) + 1 + len(p) <= limit:
+            merged[-1] += " " + p
+        else:
+            merged.append(p)
+    return merged
 
 
 def pcm16_to_float(data: bytes) -> np.ndarray:

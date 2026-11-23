@@ -52,3 +52,12 @@ def test_long_sentences_are_spoken_in_short_pieces():
         "Just to confirm: a table for 4 on Thursday 26 November at 7:30pm,",
         "under the name Lucy Brennan, phone 07700 900211.", "Shall I book that?"]
     assert Speaker.sentences(None, "Yes, that's booked.") == ["Yes, that's booked."]
+
+
+def test_spoken_text_is_cut_into_short_runs():
+    from bistrovoice.speech import _pieces
+
+    spoken = "under the name Lucy Brennan, phone 0 7 7 0 0, 9 0 0, 2 1 1."
+    pieces = _pieces(spoken, 40)
+    assert all(len(p) <= 40 for p in pieces)
+    assert " ".join(pieces) == spoken
