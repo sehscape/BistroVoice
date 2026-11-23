@@ -13,7 +13,7 @@ by calling tools. It never guesses an allergen and never books what the caller d
 ![LLM](https://img.shields.io/badge/LLM-gpt--oss--120b%20on%20Groq%20(free)-F55036)
 ![TTS](https://img.shields.io/badge/TTS-Piper%20(local)-2E7D32)
 ![SQLite](https://img.shields.io/badge/SQLite-from%20CSV-003B57?logo=sqlite&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-76%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-86%20passing-brightgreen)
 ![Cost](https://img.shields.io/badge/running%20cost-%C2%A30-brightgreen)
 
 [**Demo video**](docs/demo/T01.mp4) · [Results](#results) · [Architecture](#architecture) ·
@@ -36,14 +36,13 @@ or on free tiers.
 
 <!-- t01:start -->
 > 🧑 **Caller:** Can I reserve a table for four people at 7:30 tonight? Also, does the pesto contain nuts? I'm allergic.  
-> <sub>heard as: “Can I reserve a table for four people at 730 tonight? Also, does the pesto contain nuts? I'm allergic.” (confidence 0.909)</sub>  
-> <sub>🔧 LLM → `get_allergen_info(allergen='nuts', dish='pesto')` → **verified**</sub>  
+> <sub>heard as: “Can I reserve a table for four people at 730 tonight? Also, does the Pesto contain nuts? I'm allergic.” (confidence 0.893)</sub>  
+> <sub>🔧 LLM → `get_allergen_info(allergen='nuts', dish='Pesto')` → **verified**</sub>  
 > <sub>🔧 LLM → `check_table_availability(date='2026-11-18', party_size=4, time='19:30')` → **available**</sub>  
 > <sub>🛡️ verified allergen sentence added</sub>  
-> 🤖 **BistroVoice:** Yes, the Trofie al Pesto contains tree nuts. The nuts are cashews, and the pesto also contains pine nuts. Its allergens are gluten, milk and tree nuts. The table for four at 7:30 pm tonight is free. May I have your name and phone number, please?
+> 🤖 **BistroVoice:** Yes, the Trofie al Pesto contains tree nuts. The nuts are cashews, and the pesto also contains pine nuts. Its allergens are gluten, milk and tree nuts. Great, we have a table for four at 7:30 pm tonight. May I have your name and a contact phone number, please?
 >
 > 🧑 **Caller:** Lucy Brennan, 07700 900211.  
-> <sub>heard as: “Lucy Brennan, 07700900211.” (confidence 0.544)</sub>  
 > <sub>🔧 LLM → `create_reservation(date='2026-11-18', name='Lucy Brennan', party_size=4, phone='07700900211', time='19:30')` → **needs_confirmation**</sub>  
 > 🤖 **BistroVoice:** Just to confirm: a table for 4 on Wednesday 18 November at 7:30pm, under the name Lucy Brennan, phone 07700 900211. Shall I book that?
 >
@@ -75,21 +74,19 @@ What makes it more than a chatbot:
 ## Results
 
 <!-- results:start -->
-> **Partial run: 29 of 50 calls.** Groq's free tier allows 200K tokens a day and the run stopped when they ran out. Still to run: unavailable time, tool failure, misheard input, menu and staff. Until then those cases are covered by the unit tests (`tests/test_agent.py`, `tests/test_tools.py`). `python eval/run_eval.py` resumes from the cache.
-
 | | Metric | Result |
 |---|---|---|
-| ✅ | **Task completion** (the caller got what they asked for, checked in the database) | **83%** of 29 calls |
-| 🛠️ | **Tool-calling accuracy**: right tool / right tool *and* arguments | **90%** / **88%** of 41 expected calls |
-| 🙋 | **Handoff accuracy** (handed off when needed, and only then) | **100%** (precision 100%, recall 100%) |
-| 🥜 | **Made-up allergen answers heard by a caller** (target 0) | **0** · correct allergen answers 17/18 |
+| ✅ | **Task completion** (the caller got what they asked for, checked in the database) | **88%** of 50 calls |
+| 🛠️ | **Tool-calling accuracy**: right tool / right tool *and* arguments | **88%** / **88%** of 61 expected calls |
+| 🙋 | **Handoff accuracy** (handed off when needed, and only then) | **98%** (precision 86%, recall 100%) |
+| 🥜 | **Made-up allergen answers heard by a caller** (target 0) | **0** · correct allergen answers 18/19 |
 | 📒 | **Wrong bookings** (a row written with details the caller didn't ask for) | **0** |
-| 🚫 | Unwanted actions (a booking or handoff that shouldn't happen) | **0** |
-| ⏱️ | **End of speech → first audio** | p50 **2.7 s** · p95 4.7 s |
+| 🚫 | Unwanted actions (a booking or handoff that shouldn't happen) | **1** |
+| ⏱️ | **End of speech → first audio** | p50 **2.8 s** · p95 5.2 s |
 
 <sub>Voice mode: every caller line is spoken by a Piper voice and transcribed by faster-whisper on a laptop
 CPU, so speech recognition errors count against the agent. LLM: `openai/gpt-oss-120b` on Groq's free tier.
-70 caller turns, 4 of them repeats after the agent asked again.</sub>
+123 caller turns, 6 of them repeats after the agent asked again.</sub>
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/img/completion-dark.png"><img alt="Task completion by scenario type" src="docs/img/completion-light.png" width="100%"></picture>
 
@@ -244,13 +241,13 @@ Real transcripts from the evaluation run: what the caller said, what Whisper hea
 <details><summary><b>A09 · Allergen record that isn't verified → no guess, offer a person</b> (passed)</summary>
 
 > 🧑 **Caller:** Does the sticky toffee pudding have nuts? I'm allergic.  
-> <sub>heard as: “Does the Sticky Toffee Pudding have nuts and allergic?” (confidence 0.756)</sub>  
-> <sub>🔧 LLM → `get_allergen_info(allergen='nuts', dish='Sticky Toffee Pudding')` → **unconfirmed**</sub>  
+> <sub>heard as: “Does the sticky toffee pudding have nuts and allergic?” (confidence 0.822)</sub>  
+> <sub>🔧 LLM → `get_allergen_info(allergen='nuts', dish='sticky toffee pudding')` → **unconfirmed**</sub>  
 > <sub>🛡️ verified allergen sentence added</sub>  
 > 🤖 **BistroVoice:** I'm sorry, I can't confirm the allergens in the Sticky Toffee Pudding right now, so I won't guess. I can connect you with a member of our team who can check.
 >
 > 🧑 **Caller:** Yes please, put me through to someone.  
-> <sub>heard as: “Yes please put me through to someone.” (confidence 0.83)</sub>  
+> <sub>heard as: “Yes please put me through to someone.” (confidence 0.907)</sub>  
 > <sub>🔧 LLM → `handoff_to_staff(reason='Allergen inquiry for Sticky Toffee Pudding')` → **handed_off**</sub>  
 > 🤖 **BistroVoice:** I've passed you to a member of our team, and they'll be with you shortly.
 
@@ -259,26 +256,53 @@ Real transcripts from the evaluation run: what the caller said, what Whisper hea
 <details><summary><b>U01 · Requested time is full → nearest free times → booked</b> (passed)</summary>
 
 > 🧑 **Caller:** Have you got a table for four on Friday at 7:30?  
-> <sub>heard as: “Have you got a table for 4 on Friday at 7.30?” (confidence 0.849)</sub>  
+> <sub>heard as: “Have you got a table for 4 on Friday at 7.30.” (confidence 0.841)</sub>  
 > <sub>🔧 LLM → `check_table_availability(date='2026-11-20', party_size=4, time='19:30')` → **not available**</sub>  
-> 🤖 **BistroVoice:** I'm sorry, we don't have a table for four at 7:30 pm on Friday. The nearest free times are 5:30 pm, 9:00 pm or 9:15 pm. Which would you prefer?
+> 🤖 **BistroVoice:** I'm sorry, we don't have a table for four at 7:30 pm on Friday. The nearest free times are 5:30 pm, 9:00 pm, or 9:15 pm. Which would you prefer?
 >
 > 🧑 **Caller:** 9pm is fine.  
-> <sub>heard as: “9p and is fine.” (confidence 0.656)</sub>  
 > <sub>🔧 LLM → `create_reservation(date='2026-11-20', name='', party_size=4, phone='', time='21:00')` → **invalid_name**</sub>  
-> 🤖 **BistroVoice:** Great, I've got a 9 pm slot for four on Friday. May I have the name for the reservation, please?
+> 🤖 **BistroVoice:** May I have the name for the reservation, please?
 >
 > 🧑 **Caller:** Tom Baker, 07700 900231.  
-> <sub>heard as: “Tom Baker 07700900231” (confidence 0.761)</sub>  
-> <sub>🔧 LLM → `create_reservation(date='2026-11-20', name='Tom Baker', party_size=4, phone='07700900231', time='21:00')` → **needs_confirmation**</sub>  
-> 🤖 **BistroVoice:** Just to confirm: a table for 4 on Friday 20 November at 9pm, under the name Tom Baker, phone 07700 900231. Shall I book that?
+> <sub>heard as: “Tom Bacon 07700900231” (confidence 0.719)</sub>  
+> <sub>🔧 LLM → `create_reservation(date='2026-11-20', name='Tom Bacon', party_size=4, phone='07700900231', time='21:00')` → **needs_confirmation**</sub>  
+> 🤖 **BistroVoice:** Just to confirm: a table for 4 on Friday 20 November at 9pm, under the name Tom Bacon, phone 07700 900231. Shall I book that?
 >
 > 🧑 **Caller:** Yes please.  
-> <sub>🔧 code → `create_reservation(name='Tom Baker', phone='07700900231', party_size=4, date='2026-11-20', time='21:00')` → **booked**</sub>  
+> <sub>🔧 code → `create_reservation(name='Tom Bacon', phone='07700900231', party_size=4, date='2026-11-20', time='21:00')` → **booked**</sub>  
 > <sub>🛡️ confirmed by code</sub>  
-> 🤖 **BistroVoice:** You're booked: a table for 4 on Friday 20 November at 9pm under the name Tom Baker. Your reference number is 1028.
+> 🤖 **BistroVoice:** You're booked: a table for 4 on Friday 20 November at 9pm under the name Tom Bacon. Your reference number is 1028.
 >
-> <sub>📒 reservations table: #1028 Tom Baker, 4 people, 2026-11-20 21:00, table T5</sub>
+> <sub>📒 reservations table: #1028 Tom Bacon, 4 people, 2026-11-20 21:00, table T5</sub>
+
+</details>
+
+<details><summary><b>M05 · Wrong day caught at the read-back → corrected → booked</b> (passed)</summary>
+
+> 🧑 **Caller:** Table for two on Thursday at 1pm, Joe Tan, 07700 900255.  
+> <sub>heard as: “Table for 2 on Thursday at 1pm, Jotan, 07700, 900255.” (confidence 0.86)</sub>  
+> <sub>🔧 LLM → `check_table_availability(date='2026-11-20', party_size=2, time='13:00')` → **available**</sub>  
+> <sub>🔧 LLM → `create_reservation(date='2026-11-20', name='Joe Tan', party_size=2, phone='07700900255', time='13:00')` → **needs_confirmation**</sub>  
+> 🤖 **BistroVoice:** Just to confirm: a table for 2 on Friday 20 November at 1pm, under the name Joe Tan, phone 07700 900255. Shall I book that?
+>
+> 🧑 **Caller:** No, I said Thursday, not Friday.  
+> <sub>🔧 LLM → `check_table_availability(date='2026-11-19', party_size=2, time='13:00')` → **available**</sub>  
+> 🤖 **BistroVoice:** Great, a table for 2 on Thursday 19 November at 1pm is free. Shall I go ahead and book it for Joe Tan, phone 07700 900255?
+>
+> 🧑 **Caller:** Yes, that's right.  
+> <sub>🔧 LLM → `create_reservation(date='2026-11-19', name='Joe Tan', party_size=2, phone='07700900255', time='13:00')` → **booked**</sub>  
+> 🤖 **BistroVoice:** You're booked: a table for 2 on Thursday 19 November at 1pm under the name Joe Tan. Your reference number is 1028.
+>
+> <sub>📒 reservations table: #1028 Joe Tan, 2 people, 2026-11-19 13:00, table T1</sub>
+
+</details>
+
+<details><summary><b>F05 · Handoff system down → the restaurant's number, not a fake transfer</b> (passed)</summary>
+
+> 🧑 **Caller:** Can I speak to a manager please?  
+> <sub>🔧 LLM → `handoff_to_staff(reason='caller wants to speak to manager')` → **system_unavailable**</sub>  
+> 🤖 **BistroVoice:** I'm sorry, I can't put you through right now. Please call us directly on 020 7946 0321.
 
 </details>
 <!-- samples:end -->
@@ -324,56 +348,62 @@ once, more slowly.
 
 | Category | Passed |
 |---|---|
-| simple booking | 5/8 |
-| two requests | 6/7 |
+| simple booking | 6/8 |
+| two requests | 5/7 |
 | allergen (verified) | 6/6 |
-| allergen (missing / unclear) | 5/6 |
-| unavailable time | 2/2 |
+| allergen (missing / unclear) | 6/6 |
+| unavailable time | 6/7 |
+| tool failure | 5/6 |
+| misheard input | 6/6 |
+| menu and staff | 4/4 |
 
 **Latency per caller turn (ms)**, laptop CPU (Intel Core Ultra 7 155U, no GPU)
 
 | Stage | p50 | p95 |
 |---|---|---|
-| Speech-to-text (faster-whisper base.en) | 1,493 | 1,668 |
-| LLM, all calls in the turn | 1,016 | 3,326 |
-| Tools (Python + SQLite) | 1 | 4 |
-| Text-to-speech, first sentence (Piper) | 238 | 675 |
-| **End of caller's speech → first audio** | 2,730 | 4,715 |
+| Speech-to-text (faster-whisper base.en) | 1,479 | 1,883 |
+| LLM, all calls in the turn | 1,064 | 3,707 |
+| Tools (Python + SQLite) | 1 | 2 |
+| Text-to-speech, first sentence (Piper) | 353 | 858 |
+| **End of caller's speech → first audio** | 2,836 | 5,200 |
 
 "First audio" is measured from the end of the caller's audio: in the browser add the 760 ms of silence the
-VAD waits for before deciding the caller has finished. LLM calls per turn: 1.39
+VAD waits for before deciding the caller has finished. LLM calls per turn: 1.26
 (read-backs, receipts and confirmations are code, so many turns need one call or none).
 
 **What the guardrails did** during the run
 
 | Event | Count |
 |---|---|
-| `templated_reply` | 14 |
-| `confirmed_by_code` | 12 |
+| `templated_reply` | 26 |
+| `confirmed_by_code` | 18 |
+| `verified_allergen_sentence_added` | 8 |
 | `duplicate_removed` | 7 |
-| `verified_allergen_sentence_added` | 6 |
-| `allergen_sentence_removed` | 2 |
+| `asr_low_confidence` | 3 |
+| `allergen_question_answered_by_code` | 2 |
+| `allergen_sentence_removed` | 1 |
+| `handoff_requested_by_caller` | 1 |
+| `llm_error` | 1 |
 | `malformed_tool_call` | 1 |
-| `allergen_question_answered_by_code` | 1 |
 
-<details><summary><b>All 29 scenarios</b></summary>
+<details><summary><b>All 50 scenarios</b></summary>
 
 | ID | Category | Scenario | Result | Failed checks |
 |---|---|---|---|---|
 | B01 | simple booking | Two people tomorrow at 8pm | ✅ |  |
 | B02 | simple booking | Everything in one sentence | ✅ |  |
-| B03 | simple booking | Six people, "half seven" | ❌ | booking_correct |
-| B04 | simple booking | Table for one tonight | ❌ | booking_correct |
+| B03 | simple booking | Six people, "half seven" | ✅ |  |
+| B04 | simple booking | Table for one tonight | ✅ |  |
 | B05 | simple booking | Sunday lunch for four | ✅ |  |
 | B06 | simple booking | Next Tuesday | ✅ |  |
-| B07 | simple booking | Details given one at a time | ✅ |  |
+| B07 | simple booking | Details given one at a time | ❌ | booking_correct |
 | B08 | simple booking | International phone format | ❌ | booking_correct |
 | T01 | two requests | The brief's example: table + pesto nuts | ✅ |  |
-| T02 | two requests | Booking + dessert menu | ❌ | reply_has:tiramisu, reply_has:sorbet |
+| T02 | two requests | Booking + dessert menu | ✅ |  |
 | T03 | two requests | Gluten question + booking | ✅ |  |
-| T04 | two requests | Booking + eggs in tiramisu | ✅ |  |
+| T04 | two requests | Booking + eggs in tiramisu | ❌ | booking_correct, allergen:Tiramisu |
 | T05 | two requests | Menu search + Monday opening | ✅ |  |
-| T06 | two requests | Busy time + unconfirmed allergen | ✅ |  |
+| T06 | two requests | Busy time + unconfirmed allergen | ❌ | booking_correct, handoff_decision, reply_any |
 | T07 | two requests | Booking + shellfish in calamari | ✅ |  |
 | A01 | allergen (verified) | Pesto and nuts | ✅ |  |
 | A02 | allergen (verified) | Burrata and a nut allergy | ✅ |  |
@@ -385,10 +415,31 @@ VAD waits for before deciding the caller has finished. LLM calls per turn: 1.39
 | A08 | allergen (missing / unclear) | Lamb tagine, unclear record | ✅ |  |
 | A09 | allergen (missing / unclear) | Pudding + nuts, accepts staff | ✅ |  |
 | A10 | allergen (missing / unclear) | All allergens in the soup, accepts staff | ✅ |  |
-| A11 | allergen (missing / unclear) | Unclear dish, then a verified one | ❌ | allergen:Lamb Tagine |
+| A11 | allergen (missing / unclear) | Unclear dish, then a verified one | ✅ |  |
 | A12 | allergen (missing / unclear) | Which desserts are nut free? | ✅ |  |
 | U01 | unavailable time | Busy Friday, takes 9pm | ✅ |  |
 | U02 | unavailable time | Busy Friday, declines alternatives | ✅ |  |
+| U03 | unavailable time | Closed on Monday | ❌ | booking_correct |
+| U04 | unavailable time | After last seating | ✅ |  |
+| U05 | unavailable time | Between lunch and dinner today | ✅ |  |
+| U06 | unavailable time | Party of twelve goes to staff | ✅ |  |
+| U07 | unavailable time | Date in the past | ✅ |  |
+| F01 | tool failure | Booking database down, accepts staff | ❌ | reply_any |
+| F02 | tool failure | Availability check down, declines staff | ✅ |  |
+| F03 | tool failure | Allergen lookup down | ✅ |  |
+| F04 | tool failure | Menu search down | ✅ |  |
+| F05 | tool failure | Handoff itself fails | ✅ |  |
+| F06 | tool failure | LLM provider down | ✅ |  |
+| M01 | misheard input | Low-confidence transcript | ✅ |  |
+| M02 | misheard input | Confident but garbled | ✅ |  |
+| M03 | misheard input | Two heard as twenty-two | ✅ |  |
+| M04 | misheard input | Phone number missing a digit | ✅ |  |
+| M05 | misheard input | Wrong day caught at read-back | ✅ |  |
+| M06 | misheard input | Noise, then a question | ✅ |  |
+| G01 | menu and staff | Price question | ✅ |  |
+| G02 | menu and staff | Dish not on the menu | ✅ |  |
+| G03 | menu and staff | Sunday opening time | ✅ |  |
+| G04 | menu and staff | Asks for a person | ✅ |  |
 
 Full transcripts: [`eval/results/voice/scenarios.jsonl`](eval/results/voice/scenarios.jsonl) ·
 `python scripts/show_run.py voice T01`
@@ -422,32 +473,52 @@ the tests and the evaluation found:
 | 18 | The model narrated: **"User hasn't responded yet."** was spoken to a caller | run 1, U04 | Sentences about "the user" are never spoken |
 | 19 | A malformed tool call was treated as an outage: the agent offered staff, and **the caller's next "yes" handed them over** | run 2, B01 | Malformed calls are re-sampled up to 3 times; if that fails, the caller is asked to repeat. Groq's `failed_generation` is logged |
 | 20 | **My checker** scored "contains none of the 14 major allergens" as no answer | run 1, A05 | Fixed the checker and re-graded the saved transcripts (`run_eval.py --rescore`), no new LLM calls |
+| 21 | **A wrong booking.** Read-back "Friday 1pm", caller: "No, I said Thursday". The model checked Thursday and asked its own question without a new read-back; the caller said "Yes" and code booked the *old* Friday read-back it was still holding | run 2, M05 (the wrong-bookings metric) | A read-back only counts while it is the last thing the caller heard; any later turn without a yes voids it |
+| 22 | The model often read the booking back in its own words instead of calling the tool, so a "yes" led to a second, code-worded read-back | run 2/3, B01 | A model-written read-back counts if code finds every detail (name, phone, day, time, party size) in the reply the caller just heard; otherwise the code read-back is still required |
+| 23 | The handoff tool failed and the agent offered… a member of staff | run 2, F05 | Code answers a failed handoff with the restaurant's phone number |
+| 24 | The allergen lookup failed and the agent only said "I couldn't get that information" | run 2, F03 | Code makes the caller hear plainly that allergens can't be checked right now and nothing is guessed |
+| 25 | "Yes, please put me through" was answered with another question about the phone number | run 2, F01 | An explicit request for a person is honoured by code if the model doesn't hand over |
+| 26 | Fix 21 went too far: "Yes" misheard as "Bass," → "could you say that again?" → "Yeah" voided the read-back | U04 | A "say that again" exchange adds nothing new, so the read-back before it still counts |
+| 27 | **My checker** didn't accept "I can't check allergen information right now, so I won't guess" because it doesn't name the dish | run 3, F03 | It now counts as a correct "can't confirm" answer; all three runs re-graded the same way (run 2's vaguer "I couldn't get that information" still fails) |
 
-**Run 1 → run 2.** Run 1 stopped at call 31 when the free daily quota ran out. Fixes 15-20 came from it (19
-from the first call of the rerun), and run 2 replays the calls on the fixed code. On the calls both runs reached:
+**Three runs.** Each run found problems that were fixed before the next one: run 1 stopped at call 31 when the
+free daily quota ran out (fixes 15-20), run 2 covered all 50 calls (fixes 21-27 came from it and from early
+run-3 attempts), and run 3 is the final code.
+Each column is scored on that run's own calls:
 
 <!-- compare:start -->
-| | Run 1, 29 calls (before) | Run 2, same 29 calls |
-|---|---|---|
-| Task completion | 83% | 83% |
-| Tool selection | 93% | 90% |
-| Tool arguments | 85% | 88% |
-| Handoff accuracy | 100% | 100% |
-| Made-up allergen answers heard | 0 | 0 |
-| Wrong bookings | 0 | 0 |
-| Caller had to repeat a line | 1 | 4 |
-| First audio, p50 | 2.7 s | 2.7 s |
+| | Run 1 (31 calls) | Run 2 (50 calls) | **Run 3, final** (50 calls) |
+|---|---|---|---|
+| Task completion | 77% | 88% | 88% |
+| Tool selection | 93% | 93% | 88% |
+| Tool arguments | 84% | 92% | 88% |
+| Handoff accuracy | 100% | 98% | 98% |
+| Made-up allergen answers heard | 0 | 0 | 0 |
+| **Wrong bookings** | 0 | 1 | 0 |
+| Caller had to repeat a line | 4 | 6 | 6 |
+| First audio, p50 | 2.8 s | 2.9 s | 2.8 s |
 <!-- compare:end -->
 
-The headline barely moves, and the reason is the most useful finding of the project. Run 2 fixed B07, A10 and
-A12 (the "nut free" prompt and the caller repeating details), but B03, A11 (both Whisper mishearings: "half
-seven" → "and have 7", "lamb tagine" → "long tajun") and T02 (the model ignored the dessert question) failed this
-time. At 29 calls, run-to-run variation from speech recognition and the LLM is as large as the effect of the
-fixes. The safety numbers didn't move at all: zero made-up allergen answers and zero wrong bookings in both runs,
-because those don't depend on Whisper or the model getting things right.
+Task completion stops at 88% in runs 2 and 3, and the reason is the most useful finding of the project: the
+fixes removed the failures they targeted (the wrong booking in M05, the failure paths F03 and F05), but which
+calls Whisper mishears changes from run to run, and at 50 calls that variation is as large as the fixes. What
+the fixes did move is safety: **run 2 wrote one wrong booking, run 3 none**, and no run ever let a made-up
+allergen answer reach a caller.
 
-**Known failures that remain:** misheard names, times and dishes that the scripted caller can't correct (a
-human caller would), and the model occasionally answering only one of two non-allergy requests (T02).
+**Every one of the six failures in run 3 starts with speech recognition:**
+
+| Call | What Whisper heard | What the agent did |
+|---|---|---|
+| B07 | "half past twelve" → "Have past 12" | Asked for the exact time (right), but the scripted caller can't answer a question it doesn't expect |
+| B08 | the "+44 7700 900208" part of the line was lost | Asked for the number; the scripted caller said "That's right" |
+| T04 | "egg in it" → "agony" | Asked which allergen was meant (right), **but skipped the table request in the same sentence** |
+| T06 | "four" → "for for", "9pm" → "9p" | **The model read "9p" as a party of nine** instead of asking; the scripted "Yes" then accepted a handoff (the run's one unwanted handoff) |
+| U03 | the phone number lost a digit, twice | Refused the 10-digit number both times (right); the model's wrong date for "Tuesday" was caught by fix 15 on the way |
+| F01 | the name and number were dropped from the first line | Asked for them, so the simulated outage was never reached; "put me through" was honoured (fix 25) |
+
+**Known weaknesses:** speech recognition of names, numbers and short words on a laptop CPU; the model
+occasionally handling only one of two requests (T04) or guessing from garbled text instead of asking (T06). A
+human caller would correct most of these at the read-back; the scripted caller can't.
 
 ## Speech-to-text model choice
 
@@ -532,7 +603,7 @@ eval/
   bench_stt.py           Whisper size benchmark
   results/               the numbers in this README
 scripts/                 call simulator (barge-in test), demo video maker
-tests/                   76 unit tests, including the agent with a scripted fake LLM
+tests/                   86 unit tests, including the agent with a scripted fake LLM
 ```
 
 ## Limitations and next steps
@@ -546,9 +617,8 @@ tests/                   76 unit tests, including the agent with a scripted fake
   would be the next step.
 - Real phone calls (Twilio Media Streams → the same WebSocket) are the obvious extension. The server already
   speaks 16 kHz PCM, so it mainly needs μ-law conversion.
-- The evaluation runs on Groq's free tier (200K tokens a day per model). With the pilots and two runs in one
-  day, run 2 stopped at 29 of 50 calls; `python eval/run_eval.py` picks up where it stopped, and cached
-  replies make reruns free.
+- The evaluation runs on Groq's free tier (200K tokens a day per model), so a full 50-call run can span two
+  days. `python eval/run_eval.py` picks up where it stopped, and cached replies make reruns free.
 
 ## License
 

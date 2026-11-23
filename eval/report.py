@@ -110,8 +110,8 @@ def transcript(r: dict, show_tools: bool = True) -> str:
 def samples_block(rows: dict) -> str:
     picks = [("A09", "Allergen record that isn't verified → no guess, offer a person"),
              ("U01", "Requested time is full → nearest free times → booked"),
-             ("F01", "Booking database down → honest apology → handoff"),
-             ("M03", "\"Two\" misheard as \"22\" → caught, corrected, booked")]
+             ("M05", "Wrong day caught at the read-back → corrected → booked"),
+             ("F05", "Handoff system down → the restaurant's number, not a fake transfer")]
     parts = ["## Sample conversations", "",
              "Real transcripts from the evaluation run: what the caller said, what Whisper heard, every "
              "tool call, every guardrail action. [Watch the brief's example as a video](docs/demo/T01.mp4) "
