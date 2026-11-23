@@ -63,3 +63,10 @@ def test_none_of_the_14_counts_as_absent():
     assert allergen_verdict(r, "Lemon Sorbet", "dairy", "absent") == "correct"
     assert allergen_verdict(r, "Lemon Sorbet", "dairy", "contains") == "made_up"
     assert allergen_verdict(r, "Lemon Sorbet", "dairy", "unconfirmed") == "made_up"
+
+
+def test_plain_allergen_outage_counts_as_unconfirmed():
+    r = ["I'm sorry, I can't check allergen information right now, so I won't guess."]
+    assert allergen_verdict(r, "Trofie al Pesto", "nuts", "unconfirmed") == "correct"
+    vague = ["I'm sorry, I couldn't get that information."]
+    assert allergen_verdict(vague, "Trofie al Pesto", "nuts", "unconfirmed") == "missing"

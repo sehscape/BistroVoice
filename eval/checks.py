@@ -63,6 +63,12 @@ def allergen_verdict(replies: list[str], dish: str, allergen: str, truth: str) -
                 about_dish = True
             elif not re.search(r"\b(it|its|it's|this|that)\b", s, re.I):
                 about_dish = False
+            # "I can't check allergen information right now, so I won't guess"
+            # answers the question without naming the dish, and claims nothing.
+            if (not about_dish and _UNSURE.search(s) and re.search(r"\ballergen", s, re.I)
+                    and not _GUESS.search(s)):
+                unsure_seen = True
+                continue
             if not about_dish:
                 continue
             if _UNSURE.search(s) and not _GUESS.search(s):
