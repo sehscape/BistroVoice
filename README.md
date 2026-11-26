@@ -575,15 +575,19 @@ Want it fully offline? Point `LLM_BASE_URL` at Ollama (`http://localhost:11434/v
 ## Free hosting
 
 **Live: https://bistrovoice.onrender.com/** (free tier: the first visit after 15 idle minutes takes about a
-minute to wake up, and replies are slower than on a laptop because the server gets a tenth of a CPU; measured after deploying:
-first audio 1.5 s after a typed question).
+minute to wake up, and replies are slower than on a laptop because the server gets a tenth of a CPU; measured on the live site:
+first audio 1.5-7 s depending on the length of the reply).
 
 [`render.yaml`](render.yaml) deploys the app to Render's free plan (Docker, no card): *New → Blueprint →* pick
 this repo and paste the Groq key. A free instance has a tenth of a CPU, where local Whisper would take ~10 s
 per sentence, so the hosted demo sets `STT_BACKEND=groq` (Whisper large-v3-turbo on the same free Groq key).
 Piper still runs inside the container, on a single thread (`TTS_THREADS=1`): with ONNX Runtime's default
-thread pool one sentence took 16 s there. The same setting turns off ONNX Runtime's memory arena: a live call
-was dropped when memory peaked at 576 MB, over the free tier's 512 MB; it now peaks at about 306 MB. Locally and in the evaluation, speech-to-text is always faster-whisper.
+thread pool one sentence took 16 s there. Memory was the other limit: live calls were dropped when the
+process went over the free tier's 512 MB (485 MB measured just before one drop). The hosted image now loads the
+voice once, turns off ONNX Runtime's memory arena, caps glibc's malloc arenas and synthesises at most 40 spoken
+characters per run (`TTS_MAX_CHARS`), because Piper's working memory grows with the audio produced in one go.
+Measured on Render with `/api/health` after two full calls: **peak 371 MB**, no dropped calls, first audio
+3-7 s depending on reply length. Locally and in the evaluation, speech-to-text is always faster-whisper.
 The free instance sleeps after 15 minutes idle; the first visit wakes it in about a minute.
 
 ## Project layout
