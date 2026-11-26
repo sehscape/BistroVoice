@@ -592,9 +592,10 @@ from a local run in two places, both set in the [`Dockerfile`](Dockerfile):
 What happened on the way: Piper on one thread was still slow, and with longer replies the process went over
 512 MB and Render killed it mid-call (485 MB measured just before one drop). Loading the voice once, turning off
 ONNX Runtime's memory arena and synthesising at most 40 spoken characters per run brought it to 371 MB, but each
-reply still took 4-7 s to start. With the browser speaking instead, time to first speech on the live
-configuration is **0.3 s** for a booking confirmation, **1.1 s** for a read-back and about **3.5 s** for a
-two-question turn (all LLM time). Set `TTS_BACKEND=piper` in Render to go back to Piper; the memory settings stay.
+reply still took 4-7 s to start. With the browser speaking instead, measured on the live site after the caller
+stops talking: **0.3 s** to a booking confirmation, **0.7 s** to a read-back and **1.8 s** to the answer to a
+two-question turn, with the server's peak memory at **87 MB**. Set `TTS_BACKEND=piper` in Render to go back to
+Piper; the memory settings stay.
 
 The free instance sleeps after 15 idle minutes and takes about a minute to wake;
 [`keep-warm.yml`](.github/workflows/keep-warm.yml) pings `/api/health` every 10 minutes so visitors rarely see
