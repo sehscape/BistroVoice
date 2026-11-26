@@ -64,6 +64,7 @@ After a clear yes, call it again with the same details.
 - Offer staff for unconfirmed allergens, parties over {max_party}, failures or complaints. \
 Call handoff_to_staff only if the caller agrees or asks for a person. If it fails, give our number, {phone}.
 - Reply in one to three short spoken sentences, no lists or markdown. Times like 7:30pm.
+- Always reply in English, even if the caller uses another language.
 - Before each caller message is a "Call notes" line with the time and what is already done."""
 
 
@@ -114,6 +115,21 @@ def tidy(text: str) -> str:
     # yet."). A host never says "user" to a caller, so drop those sentences.
     return " ".join(x for x in re.split(r"(?<=[.!?])\s+", text)
                     if not re.search(r"\b(the )?user\b|\bassistant\b", x, re.I))
+
+
+def _questions_last(reply: str, verified: list[str]) -> str:
+    """If code placed verified allergen text after the model's question, ask last.
+
+    Otherwise the caller hears "May I have your name?" and then three more
+    sentences before they can answer.
+    """
+    sentences = guardrails.split_sentences(reply)
+    verified_text = " ".join(verified)
+    asked = [i for i, x in enumerate(sentences) if x.endswith("?") and x not in verified_text]
+    if not asked or not any(x in verified_text for x in sentences[asked[0] + 1:]):
+        return reply
+    questions = [sentences[i] for i in asked]
+    return " ".join([x for i, x in enumerate(sentences) if i not in asked] + questions)
 
 
 def _error_kind(err: Exception) -> str:
@@ -559,6 +575,8 @@ class Agent:
 
         reply, events = guardrails.enforce_allergen_rule(draft, verified, lookup)
         result.guard_events += events
+        if verified:
+            reply = _questions_last(reply, verified)
         if ALLERGEN_DOWN_LINE in reply:
             # The plain outage line already apologises; drop the model's vaguer one.
             vague = re.compile(r"^(i'?m )?sorry,? (but )?i (couldn'?t|could not|can'?t|cannot|wasn'?t able to)"

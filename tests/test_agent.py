@@ -333,3 +333,15 @@ def test_a_misheard_yes_does_not_void_the_readback(ctx):
     agent.respond("Bass,", confidence=0.38)
     t = agent.respond("Yeah.")
     assert t.tool_calls[0].result["status"] == "booked" and rows(ctx) == 1
+
+
+def test_question_is_asked_after_the_verified_allergen_answer(ctx):
+    llm = ScriptedLLM(LLMReply(content="", tool_calls=[
+                          ToolCall("a", "check_table_availability", json.dumps(
+                              {"date": "2026-11-18", "time": "19:30", "party_size": 4})),
+                          ToolCall("b", "get_allergen_info", json.dumps({"dish": "pesto", "allergen": "nuts"}))]),
+                      say("Great, a table for four is free at 7:30pm. May I have your name and phone number? "
+                          "The pesto has nuts in it."))
+    t = Agent(ctx, llm).respond("Table for four at 7:30 tonight, and does the pesto have nuts?")
+    assert t.reply.startswith("Great, a table for four is free at 7:30pm. Yes, the Trofie al Pesto contains tree nuts.")
+    assert t.reply.endswith("May I have your name and phone number?")

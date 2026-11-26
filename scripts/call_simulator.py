@@ -54,6 +54,11 @@ class Caller:
                     return seen
                 continue
             m = json.loads(msg)
+            if m["type"] == "speak":  # browser-voice mode: the reply arrives as text to speak
+                seen["audio"] += 1
+                if stop_after_first_audio:
+                    return seen
+                continue
             if m["type"] == "transcript":
                 print(f"  heard  : {m['text']!r} (confidence {m['confidence']})")
             elif m["type"] == "tool":

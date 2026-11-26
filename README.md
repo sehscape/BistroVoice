@@ -7,13 +7,15 @@
 **A voice agent for a restaurant that answers menu and allergen questions and books tables, in real time,
 by calling tools. It never guesses an allergen and never books what the caller didn't confirm.**
 
+<a href="https://bistrovoice.onrender.com/"><img alt="Try it live: bistrovoice.onrender.com" src="https://img.shields.io/badge/%E2%96%B6%20Try%20it%20live-bistrovoice.onrender.com-E8743B?style=for-the-badge"></a>
+
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-WebSocket-009688?logo=fastapi&logoColor=white)
 ![STT](https://img.shields.io/badge/STT-faster--whisper%20base.en-5A4FCF)
 ![LLM](https://img.shields.io/badge/LLM-gpt--oss--120b%20on%20Groq%20(free)-F55036)
 ![TTS](https://img.shields.io/badge/TTS-Piper%20(local)-2E7D32)
 ![SQLite](https://img.shields.io/badge/SQLite-from%20CSV-003B57?logo=sqlite&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-86%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-89%20passing-brightgreen)
 ![Cost](https://img.shields.io/badge/running%20cost-%C2%A30-brightgreen)
 
 [**Live demo**](https://bistrovoice.onrender.com/) · [**Demo video**](docs/demo/T01.mp4) · [Results](#results) · [Architecture](#architecture) ·
@@ -483,8 +485,9 @@ the tests and the evaluation found:
 
 **Three runs.** Each run found problems that were fixed before the next one: run 1 stopped at call 31 when the
 free daily quota ran out (fixes 15-20), run 2 covered all 50 calls (fixes 21-27 came from it and from early
-run-3 attempts), and run 3 is the final code.
-Each column is scored on that run's own calls:
+run-3 attempts), and run 3 is the final code. (Two small changes came after run 3 and are covered by unit tests
+only: an "always reply in English" line in the prompt, and the model's question moved after a verified allergen
+answer that code inserted, so the caller is asked last.) Each column is scored on that run's own calls:
 
 <!-- compare:start -->
 | | Run 1 (31 calls) | Run 2 (50 calls) | **Run 3, final** (50 calls) |
@@ -574,21 +577,29 @@ Want it fully offline? Point `LLM_BASE_URL` at Ollama (`http://localhost:11434/v
 
 ## Free hosting
 
-**Live: https://bistrovoice.onrender.com/** (free tier: the first visit after 15 idle minutes takes about a
-minute to wake up, and replies are slower than on a laptop because the server gets a tenth of a CPU; measured on the live site:
-first audio 1.5-7 s depending on the length of the reply).
+**Live: https://bistrovoice.onrender.com/** (open it in Chrome or Edge, click the orange button, allow the
+microphone and talk; **Stop** ends the call. English only for now.)
 
 [`render.yaml`](render.yaml) deploys the app to Render's free plan (Docker, no card): *New → Blueprint →* pick
-this repo and paste the Groq key. A free instance has a tenth of a CPU, where local Whisper would take ~10 s
-per sentence, so the hosted demo sets `STT_BACKEND=groq` (Whisper large-v3-turbo on the same free Groq key).
-Piper still runs inside the container, on a single thread (`TTS_THREADS=1`): with ONNX Runtime's default
-thread pool one sentence took 16 s there. Memory was the other limit: live calls were dropped when the
-process went over the free tier's 512 MB (485 MB measured just before one drop). The hosted image now loads the
-voice once, turns off ONNX Runtime's memory arena, caps glibc's malloc arenas and synthesises at most 40 spoken
-characters per run (`TTS_MAX_CHARS`), because Piper's working memory grows with the audio produced in one go.
-Measured on Render with `/api/health` after two full calls: **peak 371 MB**, no dropped calls, first audio
-3-7 s depending on reply length. Locally and in the evaluation, speech-to-text is always faster-whisper.
-The free instance sleeps after 15 minutes idle; the first visit wakes it in about a minute.
+this repo and paste the Groq key. A free instance has a tenth of a CPU and 512 MB, so the hosted demo differs
+from a local run in two places, both set in the [`Dockerfile`](Dockerfile):
+
+| | Local and evaluation | Hosted demo | Why |
+|---|---|---|---|
+| Hearing | faster-whisper base.en on the CPU | `STT_BACKEND=groq`: Whisper large-v3-turbo on the same free Groq key | Local Whisper would take ~10 s a sentence on 0.1 CPU |
+| Speaking | Piper (`en_GB-jenny_dioco`) on the server | `TTS_BACKEND=browser`: the visitor's browser speaks each piece with an English system voice | Piper took 2-6 s per sentence there |
+
+What happened on the way: Piper on one thread was still slow, and with longer replies the process went over
+512 MB and Render killed it mid-call (485 MB measured just before one drop). Loading the voice once, turning off
+ONNX Runtime's memory arena and synthesising at most 40 spoken characters per run brought it to 371 MB, but each
+reply still took 4-7 s to start. With the browser speaking instead, time to first speech on the live
+configuration is **0.3 s** for a booking confirmation, **1.1 s** for a read-back and about **3.5 s** for a
+two-question turn (all LLM time). Set `TTS_BACKEND=piper` in Render to go back to Piper; the memory settings stay.
+
+The free instance sleeps after 15 idle minutes and takes about a minute to wake;
+[`keep-warm.yml`](.github/workflows/keep-warm.yml) pings `/api/health` every 10 minutes so visitors rarely see
+that (one always-on service fits in Render's 750 free hours a month; the health check uses no Groq quota).
+`/api/health` also reports the running commit, uptime and peak memory, to check a deployment.
 
 ## Project layout
 
@@ -613,7 +624,7 @@ eval/
   bench_stt.py           Whisper size benchmark
   results/               the numbers in this README
 scripts/                 call simulator (barge-in test), demo video maker
-tests/                   86 unit tests, including the agent with a scripted fake LLM
+tests/                   89 unit tests, including the agent with a scripted fake LLM
 ```
 
 ## Limitations and next steps

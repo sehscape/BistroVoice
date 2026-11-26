@@ -236,6 +236,29 @@ def _twelve_hour(m: re.Match) -> str:
     return f"{h}{suffix}" if mm == "00" else f"{h}:{mm}{suffix}"
 
 
+def speech_pieces(text: str) -> list[str]:
+    """Split a reply into the pieces that are spoken one after another."""
+    parts = []
+    # Synthesis time and memory grow with length, so long sentences are
+    # spoken in clause-sized pieces (cut at commas, at most ~80 characters).
+    for sentence in (p for p in re.split(r"(?<=[.!?])\s+", text.strip()) if p):
+        chunk = ""
+        for clause in sentence.split(", "):
+            joined = f"{chunk}, {clause}" if chunk else clause
+            if chunk and len(joined) > 80:
+                parts.append(chunk + ",")
+                chunk = clause
+            else:
+                chunk = joined
+        parts.append(chunk)
+    # A long first piece delays the first sound: speak its opening clause alone.
+    if parts and len(parts[0]) > 60:
+        head, sep, tail = parts[0].partition(", ")
+        if sep and 8 <= len(head) <= 50:
+            parts[0:1] = [head + ",", tail]
+    return parts
+
+
 @dataclass
 class SpeechChunk:
     text: str
@@ -287,25 +310,7 @@ class Speaker:
         self._lock = threading.Lock()
 
     def sentences(self, text: str) -> list[str]:
-        parts = []
-        # Synthesis time and memory grow with length, so long sentences are
-        # spoken in clause-sized pieces (cut at commas, at most ~80 characters).
-        for sentence in (p for p in re.split(r"(?<=[.!?])\s+", text.strip()) if p):
-            chunk = ""
-            for clause in sentence.split(", "):
-                joined = f"{chunk}, {clause}" if chunk else clause
-                if chunk and len(joined) > 80:
-                    parts.append(chunk + ",")
-                    chunk = clause
-                else:
-                    chunk = joined
-            parts.append(chunk)
-        # A long first piece delays the first sound: speak its opening clause alone.
-        if parts and len(parts[0]) > 60:
-            head, sep, tail = parts[0].partition(", ")
-            if sep and 8 <= len(head) <= 50:
-                parts[0:1] = [head + ",", tail]
-        return parts
+        return speech_pieces(text)
 
     def synthesize(self, text: str) -> SpeechChunk:
         """One WAV for `text` (usually one sentence)."""

@@ -1,7 +1,9 @@
 // BistroVoice browser client.
 //
 // Mic -> AudioWorklet (16 kHz PCM16, 20 ms frames) -> energy VAD -> WebSocket.
-// Replies come back as one WAV per sentence and are queued for playback.
+// Replies come back as one WAV per sentence (Piper on the server) or as text
+// that the browser speaks with an English system voice (small hosts), and are
+// queued for playback.
 // If the customer starts talking while the agent is busy or speaking, the
 // client stops the audio at once and tells the server how many sentences
 // were fully heard (barge-in).
@@ -12,7 +14,7 @@ const $ = (id) => document.getElementById(id);
 const FRAME_MS = 20;
 const START_FRAMES = 4;        // 80 ms above threshold starts an utterance
 const BARGE_FRAMES = 9;        // stricter while the agent is talking (echo)
-const END_FRAMES = 38;         // 760 ms of quiet ends it
+const END_FRAMES = 32;         // 640 ms of quiet ends it
 const PREROLL_FRAMES = 15;     // keep 300 ms before the start so words aren't clipped
 const MIN_START = 0.012;
 const MIN_BARGE = 0.035;
@@ -63,6 +65,7 @@ function onJson(m) {
     case "guard": addGuard(m.events); break;
     case "reply": s.heard = 0; s.dropAudio = false; addAgent(m.text); break;
     case "audio": s.pendingAudio = m; break;
+    case "speak": onSpeak(m); break;
     case "metrics": addMetrics(m); break;
     case "bookings": renderBookings(m); break;
   }
@@ -70,9 +73,10 @@ function onJson(m) {
 
 function onStatus(m) {
   if (m.state === "ready") {
-    $("chip-stt").textContent = `faster-whisper ${m.stt}`;
+    $("chip-stt").textContent = m.stt.includes("Groq") ? `Whisper ${m.stt}` : `faster-whisper ${m.stt}`;
     $("chip-llm").textContent = m.llm;
-    $("chip-tts").textContent = `Piper ${m.tts.replace(/^en_\w\w-/, "").replace(/-medium$/, "")}`;
+    $("chip-tts").textContent = m.tts === "browser" ? "browser voice (English)"
+      : `Piper ${m.tts.replace(/^en_\w\w-/, "").replace(/-medium$/, "")}`;
     return;
   }
   if (m.state === "reset") {
@@ -113,17 +117,60 @@ function onAudio(buf) {
     $("mic").classList.add("speaking");
     src.onended = () => {
       if (!chunk.stopped) s.heard++;
-      s.chunks = s.chunks.filter((c) => c !== chunk);
-      if (!s.chunks.length) {
-        $("mic").classList.remove("speaking");
-        if (s.agentState === "speaking") {
-          s.agentState = "idle";
-          setStatus("Listening...");
-          setStep(null);
-        }
-      }
+      finishChunk(chunk);
     };
   }).catch(() => {});
+}
+
+function finishChunk(chunk) {
+  s.chunks = s.chunks.filter((c) => c !== chunk);
+  if (s.chunks.length) return;
+  $("mic").classList.remove("speaking");
+  if (s.agentState === "speaking") {
+    s.agentState = "idle";
+    setStatus(s.live ? "Listening..." : "Type or tap the orb to talk");
+    setStep(null);
+  }
+}
+
+// ----------------------------------------------------------------- browser voice
+// Used when the server is too small to run Piper quickly. Always an English
+// voice, British if the browser has one, whatever the system language is.
+const synth = window.speechSynthesis;
+let englishVoice = null;
+
+function pickVoice() {
+  const voices = synth ? synth.getVoices() : [];
+  const en = voices.filter((v) => /^en[-_]/i.test(v.lang));
+  const female = /female|libby|sonia|hazel|serena|kate|zira|aria|jenny|samantha|ava|allison/i;
+  englishVoice = en.find((v) => /en[-_]GB/i.test(v.lang) && female.test(v.name))
+    || en.find((v) => /en[-_]GB/i.test(v.lang))
+    || en.find((v) => /en[-_]US/i.test(v.lang) && female.test(v.name))
+    || en.find((v) => /en[-_]US/i.test(v.lang))
+    || en[0] || null;
+}
+if (synth) {
+  pickVoice();
+  synth.onvoiceschanged = pickVoice;
+}
+
+function onSpeak(m) {
+  if (s.dropAudio || !synth) return;
+  const u = new SpeechSynthesisUtterance(m.say || m.text);
+  if (englishVoice) u.voice = englishVoice;
+  u.lang = englishVoice ? englishVoice.lang : "en-GB";
+  const chunk = { seq: m.seq, stopped: false, speech: true };
+  s.chunks.push(chunk);
+  $("mic").classList.add("speaking");
+  u.onend = () => {
+    if (!chunk.stopped) s.heard++;
+    finishChunk(chunk);
+  };
+  u.onerror = () => {
+    chunk.stopped = true;
+    finishChunk(chunk);
+  };
+  synth.speak(u);
 }
 
 function isPlaying() {
@@ -134,7 +181,8 @@ function isPlaying() {
 // a half-heard sentence doesn't count (it might have been a booking read-back).
 function stopPlayback() {
   s.dropAudio = true;
-  s.chunks.forEach((c) => { c.stopped = true; try { c.src.stop(); } catch (_) {} });
+  s.chunks.forEach((c) => { c.stopped = true; try { if (c.src) c.src.stop(); } catch (_) {} });
+  if (synth) synth.cancel();
   s.chunks = [];
   s.nextStart = 0;
   $("mic").classList.remove("speaking");
@@ -146,15 +194,37 @@ async function startMic() {
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
   });
+  s.stream = stream;
   s.micCtx = new AudioContext();
-  s.playCtx = new AudioContext();
+  if (!s.playCtx) s.playCtx = new AudioContext();
   await s.micCtx.audioWorklet.addModule("/static/mic-worklet.js");
   const node = new AudioWorkletNode(s.micCtx, "mic-processor");
   s.micCtx.createMediaStreamSource(stream).connect(node);
   node.port.onmessage = (ev) => onFrame(ev.data.pcm, ev.data.rms);
   s.live = true;
   $("mic").classList.add("live");
+  $("stop").hidden = false;
   setStatus("Listening... say hello");
+}
+
+// End the call: stop the agent talking, release the microphone.
+function stopCall() {
+  const heard = stopPlayback();
+  send({ type: "stop", heard });
+  if (s.current && s.agentState !== "idle") s.current.classList.add("cut");
+  if (s.stream) s.stream.getTracks().forEach((t) => t.stop());
+  if (s.micCtx) s.micCtx.close();
+  s.stream = null;
+  s.micCtx = null;
+  s.live = false;
+  s.userTalking = false;
+  s.preroll = [];
+  s.agentState = "idle";
+  $("mic").classList.remove("live", "speaking", "thinking");
+  $("mic").style.setProperty("--level", "0");
+  $("stop").hidden = true;
+  setStep(null);
+  setStatus("Call stopped. Tap the orb to talk again.");
 }
 
 function onFrame(pcm, rms) {
@@ -241,7 +311,7 @@ function addAgent(text) {
 function addMetrics(m) {
   $("ms-stt").textContent = m.stt_ms ? `${m.stt_ms} ms` : "typed";
   $("ms-agent").textContent = `${m.llm_ms + m.tool_ms} ms`;
-  $("ms-tts").textContent = `${m.tts_first_ms ?? 0} ms first`;
+  $("ms-tts").textContent = m.tts_first_ms ? `${m.tts_first_ms} ms first` : "browser voice";
   $("first-audio").textContent = m.first_audio_ms ? `first audio ${m.first_audio_ms} ms after you stopped` : "";
   if (!s.current) return;
   const meta = document.createElement("div");
@@ -250,7 +320,7 @@ function addMetrics(m) {
     m.stt_ms ? ["STT", m.stt_ms] : null,
     ["LLM", m.llm_ms, `${m.llm_calls}x`],
     m.tool_ms ? ["tools", m.tool_ms] : null,
-    ["TTS 1st", m.tts_first_ms],
+    m.tts_first_ms ? ["TTS 1st", m.tts_first_ms] : null,
   ].filter(Boolean);
   for (const [k, v, extra] of parts) {
     const span = document.createElement("span");
@@ -335,7 +405,10 @@ function esc(t) {
 
 // ----------------------------------------------------------------- wiring
 $("mic").addEventListener("click", async () => {
-  if (s.live) return;
+  if (s.live) {
+    stopCall();
+    return;
+  }
   try {
     await startMic();
   } catch (err) {
@@ -348,6 +421,7 @@ function sendTyped(text) {
   if (!s.playCtx) s.playCtx = new AudioContext();
   s.playCtx.resume();
   if (isPlaying() || s.agentState !== "idle") bargeIn();
+  $("stop").hidden = false;
   send({ type: "text", text });
 }
 
@@ -358,6 +432,8 @@ $("type-form").addEventListener("submit", (e) => {
 });
 
 document.querySelectorAll(".try").forEach((b) => b.addEventListener("click", () => sendTyped(b.textContent)));
+
+$("stop").addEventListener("click", stopCall);
 
 $("reset").addEventListener("click", () => {
   if (s.playCtx) stopPlayback();

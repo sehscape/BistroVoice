@@ -25,6 +25,7 @@ class Settings:
     stt_model: str
     stt_backend: str
     tts_voice: str
+    tts_backend: str
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -39,4 +40,8 @@ class Settings:
             stt_model=os.getenv("STT_MODEL", "base.en"),
             stt_backend=os.getenv("STT_BACKEND", "local"),
             tts_voice=os.getenv("TTS_VOICE", "en_GB-jenny_dioco-medium"),
+            # piper = synthesised on the server (default, used by the evaluation).
+            # browser = the visitor's browser speaks the reply with an English
+            # system voice; for hosts too small to run Piper quickly.
+            tts_backend=os.getenv("TTS_BACKEND", "piper"),
         )

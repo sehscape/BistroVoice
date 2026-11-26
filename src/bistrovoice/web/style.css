@@ -82,6 +82,13 @@ main {
 @keyframes pulse { from { transform: scale(1); opacity: .9; } to { transform: scale(1.6); opacity: 0; } }
 @keyframes breathe { 50% { filter: brightness(1.25); } }
 .status { color: var(--muted); font-size: 14px; min-height: 20px; }
+.stop {
+  display: inline-flex; align-items: center; gap: 8px; padding: 7px 16px; border-radius: 999px;
+  background: transparent; border: 1px solid var(--red); color: var(--red); font-size: 14px; font-weight: 600;
+}
+.stop span { width: 10px; height: 10px; border-radius: 2px; background: var(--red); }
+.stop:hover { background: rgba(229, 85, 79, 0.12); }
+.stop[hidden] { display: none; }
 .first-audio { font-size: 12px; color: var(--olive); min-height: 16px; font-variant-numeric: tabular-nums; }
 
 /* conversation */

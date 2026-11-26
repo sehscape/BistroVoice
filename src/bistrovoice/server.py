@@ -34,7 +34,15 @@ from .agent import Agent
 from .config import WEB_DIR, Settings
 from .db import build_database, load_rules
 from .llm import LLMClient
-from .speech import SAMPLE_RATE, Speaker, make_transcriber, menu_hint, pcm16_to_float
+from .speech import (
+    SAMPLE_RATE,
+    Speaker,
+    for_speech,
+    make_transcriber,
+    menu_hint,
+    pcm16_to_float,
+    speech_pieces,
+)
 from .tools import ToolContext
 
 log = logging.getLogger("bistrovoice")
@@ -48,14 +56,15 @@ class Services:
         self.settings = settings
         hint_db = build_database(":memory:")
         self.stt = make_transcriber(settings, hint=menu_hint(hint_db))
-        self.tts = Speaker(settings.tts_voice)
+        self.tts = Speaker(settings.tts_voice) if settings.tts_backend == "piper" else None
         self.llm = LLMClient(settings)
         self.stt_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="stt")
         self.tts_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="tts")
         # Warm up so the first caller doesn't pay for model initialisation.
         if settings.stt_backend == "local":
             self.stt.transcribe(pcm16_to_float(b"\0\0" * SAMPLE_RATE))
-        self.tts.synthesize("Hello.")
+        if self.tts:
+            self.tts.synthesize("Hello.")
 
 
 services: Services | None = None
@@ -97,7 +106,7 @@ async def health():
     return {
         "ok": services is not None,
         "stt": s.stt_model if s.stt_backend == "local" else "whisper-large-v3-turbo (Groq)",
-        "tts": s.tts_voice, "llm": s.llm_model,
+        "tts": s.tts_voice if s.tts_backend == "piper" else "browser (English voice)", "llm": s.llm_model,
         # For checking a deployment: which commit is running, since when, peak memory.
         "version": os.getenv("RENDER_GIT_COMMIT", "local")[:7],
         "uptime_s": round(time.time() - STARTED),
@@ -148,7 +157,7 @@ class Call:
         stt = s.stt_model if s.stt_backend == "local" else "whisper-large-v3-turbo (Groq)"
         await self.send("status", state="ready", restaurant=self.ctx.rules.name,
                         stt=stt, llm=s.llm_model,
-                        tts=self.svc.settings.tts_voice)
+                        tts=s.tts_voice if s.tts_backend == "piper" else "browser")
         await self.send_bookings()
         while True:
             msg = await self.ws.receive()
@@ -166,6 +175,9 @@ class Call:
             elif kind == "text" and data.get("text", "").strip():
                 self.start(self.turn(text=data["text"].strip()))
             elif kind == "interrupt":
+                await self.interrupt(int(data.get("heard", 0)))
+            elif kind == "stop":  # caller pressed Stop: drop half-spoken audio too
+                self.audio = bytearray()
                 await self.interrupt(int(data.get("heard", 0)))
             elif kind == "reset":
                 await self.cancel()
@@ -237,7 +249,17 @@ class Call:
                            tool_ms=round(result.tool_ms))
             await self.send("reply", text=result.reply)
 
-            self.sentences = self.svc.tts.sentences(result.reply)
+            self.sentences = speech_pieces(result.reply)
+            if self.svc.tts is None:
+                # The browser speaks: send each piece as text, normalised for speech.
+                metrics.update(tts_first_ms=0, tts_ms=0,
+                               first_audio_ms=round((time.perf_counter() - t0) * 1000))
+                await self.send("status", state="speaking")
+                for i, sentence in enumerate(self.sentences):
+                    await self.send("speak", seq=i, text=sentence, say=for_speech(sentence))
+                metrics["total_ms"] = metrics["first_audio_ms"]
+                await self.send("metrics", **metrics)
+                return
             tts_ms = 0.0
             for i, sentence in enumerate(self.sentences):
                 chunk = await loop.run_in_executor(self.svc.tts_pool, self.svc.tts.synthesize, sentence)

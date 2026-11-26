@@ -1,0 +1,18 @@
+# Render's free instance sleeps after 15 idle minutes and takes about a minute
+# to wake, which is the slowest moment of the live demo. A ping every 10 minutes
+# keeps it awake (one always-on service fits in Render's 750 free hours a month).
+# /api/health doesn't call the LLM, so this uses no Groq quota.
+name: keep-warm
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping the live demo
+        run: curl -fsS --max-time 120 https://bistrovoice.onrender.com/api/health
