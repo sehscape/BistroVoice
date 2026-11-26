@@ -194,12 +194,13 @@ def compare_block(final: dict) -> str:
     from eval.run_eval import summarise  # noqa: PLC0415
 
     runs = []
-    for label, tag in (("Run 1", "voice-run1"), ("Run 2", "voice-run2")):
+    for label, tag in (("Run 1", "voice-run1"), ("Run 2", "voice-run2"), ("Run 3, London", "voice-run3"),
+                       ("Run 4, Mumbai", "voice-run4")):
         path = RESULTS / tag / "scenarios.jsonl"
         if path.exists():
             rows = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines()]
             runs.append((f"{label} ({len(rows)} calls)", summarise(rows, "voice", "", True)))
-    runs.append((f"**Run 3, final** ({len(final)} calls)", summarise(list(final.values()), "voice", "", True)))
+    runs.append((f"**Run 5, final** ({len(final)} calls)", summarise(list(final.values()), "voice", "", True)))
 
     def row(label, key, fmt):
         return f"| {label} | " + " | ".join(fmt(s[key]) for _, s in runs) + " |"
@@ -231,10 +232,11 @@ needs survived.
 |---|---|---|---|---|
 {rows}
 
-The prompt (dish names, a phone-number example, allergy words) is the biggest win: 22 → 27 key facts for
-base.en. Beam 5 keeps the same facts here, but on a separate set of phone-number lines it got 7/10 right against
-4/10 for greedy decoding, which is worth ~0.2 s for a booking agent. small.en is 2.5x slower and no better.
-Phone numbers stay the hardest part, see the build log below."""
+The prompt (dish names, a phone-number example, allergy words) is the biggest win: 21 → 24 key facts for
+base.en, and "nut free" is no longer heard as "not free". Beam 5 cuts word errors from 9.3% to 8.1% here, and on
+a separate set of phone-number lines it got 7/10 right against 4/10 for greedy decoding, which is worth ~0.5 s
+for a booking agent. small.en keeps one more fact but is 2.6x slower. Every model hears "trofie" as "trophy";
+callers in the evaluation ask about "the pesto", which they all get right. Phone numbers stay the hardest part, see the build log below."""
 
 
 def tests_count() -> int:

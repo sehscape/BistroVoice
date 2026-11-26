@@ -1,7 +1,7 @@
 """The allergen vocabulary and the rule for what counts as "verified".
 
-The vocabulary is the 14 allergens UK food businesses must declare
-(Food Information Regulations 2014). A record is verified only when the
+The vocabulary is the 14 major allergens of international menu labelling (the
+EU/UK list, which covers the allergens India's FSSAI labelling rules name). A record is verified only when the
 spreadsheet says verified = yes AND every listed allergen is one of the 14
 (or the single word "none"). Anything else, such as "nuts?" or a blank cell,
 is treated as unconfirmed and its contents are never shown to the LLM.

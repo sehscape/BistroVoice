@@ -184,29 +184,28 @@ def _clean_transcript(text: str) -> str:
 def menu_hint(conn) -> str:
     dishes = ", ".join(r[0] for r in conn.execute("SELECT dish FROM menu"))
     # The phone example roughly halved phone-number errors in our tests (10/18 -> 13/18 right).
-    return (f"A phone call to Olive and Ember restaurant about a table booking. Menu: {dishes}. "
-            "Callers give UK phone numbers like 07700 900123 and ask about allergies: "
+    return (f"A phone call to Olive and Ember restaurant in Mumbai about a table booking. "
+            f"Menu: {dishes}. Callers give Indian mobile numbers like 98200 12345 and ask about allergies: "
             "nut free, gluten free, dairy free, shellfish, sesame.")
 
 
 # ====================================================================== text-to-speech
 
-_SPOKEN_DIGITS = re.compile(r"\b0\d{4}\s?\d{6}\b")
+_SPOKEN_DIGITS = re.compile(r"\b[6-9]\d{4}\s?\d{5}\b")  # Indian mobile: 98200 12345
 
 
 def for_speech(text: str) -> str:
     """Rewrite text so the voice reads it the way a person would say it."""
     t = text
     # phone numbers: read digit by digit, grouped
-    t = _SPOKEN_DIGITS.sub(lambda m: _digits(m.group().replace(" ", ""), (5, 3, 3)), t)
-    # London landlines: "020 7946 0321" -> "0 2 0, 7 9 4 6, 0 3 2 1"
+    t = _SPOKEN_DIGITS.sub(lambda m: _digits(m.group().replace(" ", ""), (5, 5)), t)
+    # Mumbai landlines: "022 4000 0321" -> "0 2 2, 4 0 0 0, 0 3 2 1"
     t = re.sub(r"\b0\d{2} \d{4} \d{4}\b", lambda m: _digits(m.group().replace(" ", ""), (3, 4, 4)), t)
     # booking references: "reference 1028" -> "reference 1 0 2 8"
     t = re.sub(r"(reference(?: number)?(?: is)?:?\s*)(\d{3,6})\b",
                lambda m: m.group(1) + " ".join(m.group(2)), t, flags=re.I)
     # prices
-    t = re.sub(r"£(\d+)\.00\b", r"\1 pounds", t)
-    t = re.sub(r"£(\d+)\.(\d{2})\b", lambda m: f"{m.group(1)} pounds {int(m.group(2))}", t)
+    t = re.sub(r"(?:₹|Rs\.?\s?|INR\s?)(\d+(?:,\d+)*)",lambda m: m.group(1).replace(",", "") + " rupees", t)
     # 24-hour times -> 12-hour
     t = re.sub(r"\b([01]?\d|2[0-3]):([0-5]\d)\b(?!\s*[ap]\.?m)", _twelve_hour, t)
     t = re.sub(r"\b(\d{1,2}):00\s*([ap])\.?m\.?", r"\1 \2m", t, flags=re.I)

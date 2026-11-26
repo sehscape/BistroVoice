@@ -31,21 +31,21 @@ def say(text):
     return LLMReply(content=text)
 
 
-BOOKING = dict(name="Sam Lee", phone="07700900555", party_size=4, date="2026-11-18", time="19:30")
+BOOKING = dict(name="Sam Lee", phone="9820010555", party_size=4, date="2026-11-18", time="19:30")
 
 
 def rows(ctx):
-    return ctx.conn.execute("SELECT COUNT(*) FROM reservations WHERE phone = '07700900555'").fetchone()[0]
+    return ctx.conn.execute("SELECT COUNT(*) FROM reservations WHERE phone = '9820010555'").fetchone()[0]
 
 
 def test_booking_needs_a_yes_in_a_later_turn(ctx):
     llm = ScriptedLLM(call("create_reservation", **BOOKING))
     agent = Agent(ctx, llm)
-    t1 = agent.respond("Book it for Sam Lee, 07700 900555")
+    t1 = agent.respond("Book it for Sam Lee, 98200 10555")
     assert t1.tool_calls[0].result["status"] == "needs_confirmation"
     # the read-back is worded by code, not the model
     assert t1.reply == ("Just to confirm: a table for 4 on Wednesday 18 November at 7:30pm, under the "
-                        "name Sam Lee, phone 07700 900555. Shall I book that?")
+                        "name Sam Lee, phone 98200 10555. Shall I book that?")
     assert rows(ctx) == 0
     t2 = agent.respond("Yes please")
     assert t2.tool_calls[0].result["status"] == "booked"
@@ -59,14 +59,14 @@ def test_model_cannot_confirm_on_the_customers_behalf(ctx):
     both = LLMReply(content="", tool_calls=[ToolCall("a", "create_reservation", json.dumps(BOOKING)),
                                             ToolCall("b", "create_reservation", json.dumps(BOOKING))])
     llm = ScriptedLLM(both, say("Shall I book it?"))
-    Agent(ctx, llm).respond("Table for 4 tonight 7:30, Sam Lee, 07700900555")
+    Agent(ctx, llm).respond("Table for 4 tonight 7:30, Sam Lee, 9820010555")
     assert rows(ctx) == 0
 
 
 def test_no_or_a_change_is_not_a_yes(ctx):
     llm = ScriptedLLM(call("create_reservation", **BOOKING), call("create_reservation", **BOOKING))
     agent = Agent(ctx, llm)
-    agent.respond("Sam Lee, 07700900555")
+    agent.respond("Sam Lee, 9820010555")
     agent.respond("Yes but actually make it 8pm")
     assert rows(ctx) == 0
 
@@ -75,7 +75,7 @@ def test_changed_details_need_a_new_confirmation(ctx):
     later = {**BOOKING, "time": "20:00"}
     llm = ScriptedLLM(call("create_reservation", **BOOKING), call("create_reservation", **later))
     agent = Agent(ctx, llm)
-    agent.respond("Sam Lee, 07700900555")
+    agent.respond("Sam Lee, 9820010555")
     t2 = agent.respond("Could we make it 8pm instead?")
     assert t2.tool_calls[0].result["status"] == "needs_confirmation"
     assert rows(ctx) == 0
@@ -110,7 +110,7 @@ def test_verified_sentence_is_kept_when_quoted(ctx):
 def test_false_booking_claim_after_a_failure_is_removed(ctx):
     ctx.faults.add("check_table_availability")
     llm = ScriptedLLM(call("create_reservation", **BOOKING), say("You're all booked for 7:30pm tonight!"))
-    t = Agent(ctx, llm).respond("Sam Lee, 07700900555")
+    t = Agent(ctx, llm).respond("Sam Lee, 9820010555")
     assert "booked" not in t.reply.lower()
     assert t.reply.startswith("I'm sorry")
     assert rows(ctx) == 0
@@ -149,7 +149,7 @@ def test_llm_outage_offers_staff(ctx):
 def test_system_prompt_carries_dates_and_pending_booking(ctx):
     llm = ScriptedLLM(call("create_reservation", **BOOKING), say("Sure."))
     agent = Agent(ctx, llm)
-    agent.respond("Sam Lee 07700900555")
+    agent.respond("Sam Lee 9820010555")
     agent.respond("hmm")
     messages = llm.sent[-1]
     system, note = messages[0]["content"], messages[-2]["content"]
@@ -172,7 +172,7 @@ def test_history_is_append_only_so_it_can_be_cached(ctx):
 def test_plain_yes_is_booked_by_code_without_the_llm(ctx):
     llm = ScriptedLLM(call("create_reservation", **BOOKING))
     agent = Agent(ctx, llm)
-    agent.respond("Sam Lee, 07700 900555")
+    agent.respond("Sam Lee, 98200 10555")
     t = agent.respond("Yep, perfect.")
     assert len(llm.sent) == 1  # the yes never reached the model
     assert t.tool_calls[0].forced and t.tool_calls[0].result["status"] == "booked"
@@ -182,7 +182,7 @@ def test_plain_yes_is_booked_by_code_without_the_llm(ctx):
 def test_a_yes_with_more_in_it_goes_to_the_llm(ctx):
     llm = ScriptedLLM(call("create_reservation", **BOOKING), say("Of course. Shall I book it first?"))
     agent = Agent(ctx, llm)
-    agent.respond("Sam Lee, 07700 900555")
+    agent.respond("Sam Lee, 98200 10555")
     agent.respond("Yes, and is the tiramisu nut free?")
     assert len(llm.sent) == 2 and rows(ctx) == 0
 
@@ -190,7 +190,7 @@ def test_a_yes_with_more_in_it_goes_to_the_llm(ctx):
 def test_failed_booking_is_not_retried_by_the_next_yes(ctx):
     llm = ScriptedLLM(call("create_reservation", **BOOKING), say("Connecting you now."))
     agent = Agent(ctx, llm)
-    agent.respond("Sam Lee, 07700 900555")
+    agent.respond("Sam Lee, 98200 10555")
     ctx.faults.add("create_reservation")
     t = agent.respond("Yes please.")
     assert "not booked" in t.reply and agent.pending is None
@@ -241,7 +241,7 @@ def test_malformed_tool_call_asks_again_instead_of_offering_staff(ctx):
         def chat(self, *_):
             raise MalformedToolCall('{"party_size":1","phone":"0770092"}')
 
-    t = Agent(ctx, Fumbles()).respond("It's Alex Morgan, 07700 900201.")
+    t = Agent(ctx, Fumbles()).respond("It's Alex Morgan, 98200 10201.")
     assert t.reply == CLARIFY_LINE and t.clarified
     assert "team" not in t.reply
 
@@ -265,7 +265,7 @@ def test_a_readback_the_caller_moved_past_cannot_be_confirmed(ctx):
                       say("Thursday 1pm is free. Shall I book it for Sam Lee?"),
                       call("create_reservation", **{**friday, "date": "2026-11-19"}))
     agent = Agent(ctx, llm)
-    agent.respond("Sam Lee, 07700 900555, Friday at 1pm for four")
+    agent.respond("Sam Lee, 98200 10555, Friday at 1pm for four")
     agent.respond("No, I said Thursday, not Friday.")
     t = agent.respond("Yes, that's right.")
     assert rows(ctx) == 0  # nothing booked: Thursday hasn't been read back yet
@@ -277,7 +277,7 @@ def test_failed_handoff_gives_the_restaurant_number(ctx):
     ctx.faults.add("handoff_to_staff")
     llm = ScriptedLLM(call("handoff_to_staff", reason="manager"))
     t = Agent(ctx, llm).respond("Can I speak to a manager please?")
-    assert "020 7946 0321" in t.reply and "member of" not in t.reply
+    assert "022 4000 0321" in t.reply and "member of" not in t.reply
 
 
 def test_allergen_outage_is_said_plainly(ctx):
@@ -308,10 +308,10 @@ def test_a_complete_readback_written_by_the_model_counts(ctx):
     # Evaluation B01: the model read the details back itself instead of calling the
     # tool. Every detail was in what the caller heard, so their "yes" books it.
     llm = ScriptedLLM(say("Just to confirm: a table for 4 on Wednesday 18 November at 7:30 pm, under the name "
-                          "Sam Lee, phone 07700 900555. Shall I book it?"),
+                          "Sam Lee, phone 98200 10555. Shall I book it?"),
                       call("create_reservation", **BOOKING))
     agent = Agent(ctx, llm)
-    agent.respond("Sam Lee, 07700 900555")
+    agent.respond("Sam Lee, 98200 10555")
     t = agent.respond("Yes, that's right.")
     assert t.tool_calls[0].result["status"] == "booked" and rows(ctx) == 1
 
@@ -319,7 +319,7 @@ def test_a_complete_readback_written_by_the_model_counts(ctx):
 def test_an_incomplete_readback_still_needs_the_code_readback(ctx):
     llm = ScriptedLLM(say("Lovely, shall I book that for you?"), call("create_reservation", **BOOKING))
     agent = Agent(ctx, llm)
-    agent.respond("Sam Lee, 07700 900555, four people tonight at 7:30")
+    agent.respond("Sam Lee, 98200 10555, four people tonight at 7:30")
     t = agent.respond("Yes, that's right.")
     assert t.tool_calls[0].result["status"] == "needs_confirmation" and rows(ctx) == 0
 
@@ -329,7 +329,7 @@ def test_a_misheard_yes_does_not_void_the_readback(ctx):
     # "Yeah." must still confirm the read-back the caller heard.
     llm = ScriptedLLM(call("create_reservation", **BOOKING))
     agent = Agent(ctx, llm)
-    agent.respond("Sam Lee, 07700 900555")
+    agent.respond("Sam Lee, 98200 10555")
     agent.respond("Bass,", confidence=0.38)
     t = agent.respond("Yeah.")
     assert t.tool_calls[0].result["status"] == "booked" and rows(ctx) == 1
@@ -345,3 +345,21 @@ def test_question_is_asked_after_the_verified_allergen_answer(ctx):
     t = Agent(ctx, llm).respond("Table for four at 7:30 tonight, and does the pesto have nuts?")
     assert t.reply.startswith("Great, a table for four is free at 7:30pm. Yes, the Trofie al Pesto contains tree nuts.")
     assert t.reply.endswith("May I have your name and phone number?")
+
+
+def test_allergen_lookups_without_a_reply_still_answer(ctx):
+    # Run 4, A12: the model checked the desserts, then wrote nothing.
+    llm = ScriptedLLM(call("get_allergen_info", dish="Lemon Sorbet", allergen="nuts"),
+                      call("get_allergen_info", dish="Sticky Toffee Pudding", allergen="nuts"), say(""))
+    t = Agent(ctx, llm).respond("Which of your desserts are nut free?")
+    assert t.reply != CLARIFY_LINE
+    assert "the Lemon Sorbet doesn't contain tree nuts" in t.reply
+    assert "can't confirm the allergens in the Sticky Toffee Pudding" in t.reply
+    assert t.reply.count("can't rule out traces") == 1
+
+
+def test_phone_number_in_two_halves_reaches_the_model_as_one():
+    from bistrovoice.agent import join_phone_groups
+
+    assert join_phone_groups("Nadia Khan, 98200, 10207") == "Nadia Khan, 98200 10207"
+    assert join_phone_groups("table for 2 at 7, 12345") == "table for 2 at 7, 12345"

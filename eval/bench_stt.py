@@ -25,7 +25,7 @@ from bistrovoice.speech import CALLER_VOICES, Speaker, Transcriber, menu_hint  #
 LINES = [
     "Can I reserve a table for four people at seven thirty tonight?",
     "Also, does the pesto contain nuts? I'm allergic.",
-    "My name is Priya Shah and my number is 07700 900456.",
+    "My name is Priya Shah and my number is 98200 10456.",
     "Yes, that's right, please book it.",
     "Do you have a table for two on Friday at eight?",
     "Is the sticky toffee pudding safe for someone with a nut allergy?",
@@ -40,7 +40,7 @@ LINES = [
     "Which of your desserts are nut free?",
 ]
 # What must survive transcription for the agent to act correctly.
-KEY_FACTS = [["four|4", r"7[:.]?30|seven thirty"], ["pesto", "nuts"], ["priya", r"07700 ?900 ?456"],
+KEY_FACTS = [["four|4", r"7[:.]?30|seven thirty"], ["pesto", "nuts"], ["priya", r"98200 ?10 ?456"],
              ["yes"], ["two|2", "friday", r"at (eight|8)"], ["sticky toffee", "nut"], ["dessert"],
              [r"9[:.]30|half[- ]past (nine|9)|nine thirty"], ["calamari", "shellfish"], ["manager"],
              ["six|6", "saturday", r"7[:.]?15|seven fifteen"], ["trofie", "pesto"],

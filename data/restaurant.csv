@@ -1,8 +1,8 @@
 key,value
 name,Olive & Ember
-address,"14 Clerkenwell Road, London (fictional)"
-phone,020 7946 0321
-timezone,Europe/London
+address,"14 Hill Road, Bandra West, Mumbai (fictional)"
+phone,022 4000 0321
+timezone,Asia/Kolkata
 booking_duration_minutes,120
 slot_minutes,15
 min_party,1

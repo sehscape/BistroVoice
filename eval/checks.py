@@ -30,6 +30,7 @@ _WORDS = {
     "lupin": r"lupin",
 }
 _ANY_ALLERGEN = "|".join(_WORDS.values()) + r"|allergens?"
+_NAMED_ALLERGEN = r"\b(" + "|".join(_WORDS.values()) + r")\b"  # a real allergen, not the word "allergen"
 _NEG = re.compile(r"\b(no|not|doesn't|does not|isn't|is not|free|without|none)\b|n't\b", re.I)
 _UNSURE = re.compile(r"\b(can't|cannot|can not|unable to|not able to|won't)\b.{0,25}"
                      r"\b(confirm|check|verify|guess|say)\b", re.I)
@@ -73,6 +74,9 @@ def allergen_verdict(replies: list[str], dish: str, allergen: str, truth: str) -
                 continue
             if _UNSURE.search(s) and not _GUESS.search(s):
                 unsure_seen = True
+                continue
+            # "Which allergen did you want to know about?" asks, it doesn't claim.
+            if s.rstrip().endswith("?") and not re.search(pattern if keys else _NAMED_ALLERGEN, s, re.I):
                 continue
             if re.search(r"\bnone of the 14\b|\bno (major )?allergens\b", s, re.I):
                 claims.append("absent")  # an explicit "absent" for every allergen

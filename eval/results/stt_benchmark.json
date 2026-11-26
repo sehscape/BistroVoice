@@ -1,42 +1,42 @@
 {
   "tiny.en + prompt, beam 1": {
-    "wer": 0.108,
-    "key_facts_kept": "19/28",
-    "p50_ms": 312,
-    "max_ms": 401,
-    "real_time_factor": 0.154,
-    "mean_confidence": 0.878
+    "wer": 0.145,
+    "key_facts_kept": "18/28",
+    "p50_ms": 347,
+    "max_ms": 467,
+    "real_time_factor": 0.169,
+    "mean_confidence": 0.849
   },
   "base.en, beam 1": {
-    "wer": 0.117,
-    "key_facts_kept": "22/28",
-    "p50_ms": 728,
-    "max_ms": 933,
-    "real_time_factor": 0.368,
-    "mean_confidence": 0.854
+    "wer": 0.102,
+    "key_facts_kept": "21/28",
+    "p50_ms": 581,
+    "max_ms": 689,
+    "real_time_factor": 0.294,
+    "mean_confidence": 0.849
   },
   "base.en + prompt, beam 1": {
-    "wer": 0.085,
-    "key_facts_kept": "27/28",
-    "p50_ms": 825,
-    "max_ms": 883,
-    "real_time_factor": 0.404,
-    "mean_confidence": 0.888
+    "wer": 0.093,
+    "key_facts_kept": "24/28",
+    "p50_ms": 772,
+    "max_ms": 1183,
+    "real_time_factor": 0.416,
+    "mean_confidence": 0.873
   },
   "base.en + prompt, beam 5": {
-    "wer": 0.088,
-    "key_facts_kept": "27/28",
-    "p50_ms": 1016,
-    "max_ms": 1311,
-    "real_time_factor": 0.505,
-    "mean_confidence": 0.892
+    "wer": 0.081,
+    "key_facts_kept": "24/28",
+    "p50_ms": 1352,
+    "max_ms": 1553,
+    "real_time_factor": 0.663,
+    "mean_confidence": 0.882
   },
   "small.en + prompt, beam 1": {
-    "wer": 0.062,
-    "key_facts_kept": "26/28",
-    "p50_ms": 2468,
-    "max_ms": 2727,
-    "real_time_factor": 1.226,
-    "mean_confidence": 0.898
+    "wer": 0.08,
+    "key_facts_kept": "25/28",
+    "p50_ms": 3544,
+    "max_ms": 4085,
+    "real_time_factor": 1.779,
+    "mean_confidence": 0.893
   }
 }

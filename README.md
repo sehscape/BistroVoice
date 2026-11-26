@@ -15,8 +15,8 @@ by calling tools. It never guesses an allergen and never books what the caller d
 ![LLM](https://img.shields.io/badge/LLM-gpt--oss--120b%20on%20Groq%20(free)-F55036)
 ![TTS](https://img.shields.io/badge/TTS-Piper%20(local)-2E7D32)
 ![SQLite](https://img.shields.io/badge/SQLite-from%20CSV-003B57?logo=sqlite&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-89%20passing-brightgreen)
-![Cost](https://img.shields.io/badge/running%20cost-%C2%A30-brightgreen)
+![Tests](https://img.shields.io/badge/tests-94%20passing-brightgreen)
+![Cost](https://img.shields.io/badge/running%20cost-%E2%82%B90-brightgreen)
 
 [**Live demo**](https://bistrovoice.onrender.com/) · [**Demo video**](docs/demo/T01.mp4) · [Results](#results) · [Architecture](#architecture) ·
 [Does every part need an LLM?](#does-every-part-of-the-problem-need-an-llm) · [Run it](#run-it-yourself)
@@ -38,22 +38,23 @@ or on free tiers.
 
 <!-- t01:start -->
 > 🧑 **Caller:** Can I reserve a table for four people at 7:30 tonight? Also, does the pesto contain nuts? I'm allergic.  
-> <sub>heard as: “Can I reserve a table for four people at 730 tonight? Also, does the Pesto contain nuts? I'm allergic.” (confidence 0.893)</sub>  
-> <sub>🔧 LLM → `get_allergen_info(allergen='nuts', dish='Pesto')` → **verified**</sub>  
+> <sub>heard as: “Could I reserve a table for four people at 7.30 tonight? Also, does the pesto contain nuts? I'm allergic.” (confidence 0.892)</sub>  
 > <sub>🔧 LLM → `check_table_availability(date='2026-11-18', party_size=4, time='19:30')` → **available**</sub>  
-> <sub>🛡️ verified allergen sentence added</sub>  
-> 🤖 **BistroVoice:** Yes, the Trofie al Pesto contains tree nuts. The nuts are cashews, and the pesto also contains pine nuts. Its allergens are gluten, milk and tree nuts. Great, we have a table for four at 7:30 pm tonight. May I have your name and a contact phone number, please?
+> <sub>🔧 LLM → `get_allergen_info(allergen='nuts', dish='pesto')` → **verified**</sub>  
+> <sub>🛡️ allergen sentence removed</sub>  
+> 🤖 **BistroVoice:** The table for four at 7:30 pm tonight is available. Yes, the Trofie al Pesto contains tree nuts. The nuts are cashews, and the pesto also contains pine nuts. Its allergens are gluten, milk and tree nuts. May I have your name and a 10-digit phone number to confirm the reservation?
 >
-> 🧑 **Caller:** Lucy Brennan, 07700 900211.  
-> <sub>🔧 LLM → `create_reservation(date='2026-11-18', name='Lucy Brennan', party_size=4, phone='07700900211', time='19:30')` → **needs_confirmation**</sub>  
-> 🤖 **BistroVoice:** Just to confirm: a table for 4 on Wednesday 18 November at 7:30pm, under the name Lucy Brennan, phone 07700 900211. Shall I book that?
+> 🧑 **Caller:** Priya Nair, 98200 10211.  
+> <sub>heard as: “Crianaire 98200 10211” (confidence 0.494)</sub>  
+> <sub>🔧 LLM → `create_reservation(date='2026-11-18', name='Crianaire', party_size=4, phone='9820010211', time='19:30')` → **needs_confirmation**</sub>  
+> 🤖 **BistroVoice:** Just to confirm: a table for 4 on Wednesday 18 November at 7:30pm, under the name Crianaire, phone 98200 10211. Shall I book that?
 >
 > 🧑 **Caller:** Yes, please book it.  
-> <sub>🔧 code → `create_reservation(name='Lucy Brennan', phone='07700900211', party_size=4, date='2026-11-18', time='19:30')` → **booked**</sub>  
+> <sub>🔧 code → `create_reservation(name='Crianaire', phone='9820010211', party_size=4, date='2026-11-18', time='19:30')` → **booked**</sub>  
 > <sub>🛡️ confirmed by code</sub>  
-> 🤖 **BistroVoice:** You're booked: a table for 4 on Wednesday 18 November at 7:30pm under the name Lucy Brennan. Your reference number is 1028.
+> 🤖 **BistroVoice:** You're booked: a table for 4 on Wednesday 18 November at 7:30pm under the name Crianaire. Your reference number is 1028.
 >
-> <sub>📒 reservations table: #1028 Lucy Brennan, 4 people, 2026-11-18 19:30, table T6</sub>
+> <sub>📒 reservations table: #1028 Crianaire, 4 people, 2026-11-18 19:30, table T6</sub>
 <!-- t01:end -->
 
 <img src="docs/img/ui-call.jpg" alt="The BistroVoice web app during a call: conversation, tool calls, guardrail events and the live reservations table" width="100%">
@@ -78,17 +79,17 @@ What makes it more than a chatbot:
 <!-- results:start -->
 | | Metric | Result |
 |---|---|---|
-| ✅ | **Task completion** (the caller got what they asked for, checked in the database) | **88%** of 50 calls |
-| 🛠️ | **Tool-calling accuracy**: right tool / right tool *and* arguments | **88%** / **88%** of 61 expected calls |
-| 🙋 | **Handoff accuracy** (handed off when needed, and only then) | **98%** (precision 86%, recall 100%) |
+| ✅ | **Task completion** (the caller got what they asked for, checked in the database) | **92%** of 50 calls |
+| 🛠️ | **Tool-calling accuracy**: right tool / right tool *and* arguments | **97%** / **88%** of 61 expected calls |
+| 🙋 | **Handoff accuracy** (handed off when needed, and only then) | **100%** (precision 100%, recall 100%) |
 | 🥜 | **Made-up allergen answers heard by a caller** (target 0) | **0** · correct allergen answers 18/19 |
 | 📒 | **Wrong bookings** (a row written with details the caller didn't ask for) | **0** |
-| 🚫 | Unwanted actions (a booking or handoff that shouldn't happen) | **1** |
-| ⏱️ | **End of speech → first audio** | p50 **2.8 s** · p95 5.2 s |
+| 🚫 | Unwanted actions (a booking or handoff that shouldn't happen) | **0** |
+| ⏱️ | **End of speech → first audio** | p50 **2.3 s** · p95 4.0 s |
 
 <sub>Voice mode: every caller line is spoken by a Piper voice and transcribed by faster-whisper on a laptop
 CPU, so speech recognition errors count against the agent. LLM: `openai/gpt-oss-120b` on Groq's free tier.
-123 caller turns, 6 of them repeats after the agent asked again.</sub>
+120 caller turns, 3 of them repeats after the agent asked again.</sub>
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/img/completion-dark.png"><img alt="Task completion by scenario type" src="docs/img/completion-light.png" width="100%"></picture>
 
@@ -175,7 +176,7 @@ code or SQL, and code checks the LLM's work before it reaches the caller.
 | Party size 1-8, more goes to staff | **Code** | |
 | Is a table free? Which one? | **SQL** (overlap query, smallest table that fits, ≤ 2 empty seats) | Exact |
 | Nearest free times if not | **Code** (scan the day's 15-minute slots) | |
-| Is this allergen record verified? | **Code**: `verified = yes` and every item is one of the 14 UK allergens | "nuts?" is not verified |
+| Is this allergen record verified? | **Code**: `verified = yes` and every item is one of the 14 major allergens | "nuts?" is not verified |
 | The allergen sentence itself | **Code template** from the verified field | Must be exact |
 | Was the name/phone actually said by the caller? | **Code** | The LLM once invented "John Smith" |
 | Booking read-back and receipt | **Code template** | Must be exact, and saves an LLM call |
@@ -197,7 +198,7 @@ required arguments, catches every exception and **never raises**: a failure come
 | `check_table_availability` | `date`, `time`, `party_size` | `available`, or the 3 nearest free times (same day, else the next open days) | past date · closed day · outside hours / after last seating · 15-min grid · 30 min notice · 60 days ahead · 1-8 people (9+ → staff) |
 | `search_menu` | `query` | up to 6 dishes: price, description, ingredients | course synonyms ("puddings" → desserts), fuzzy names ("tiramisoo") |
 | `get_allergen_info` | `dish`, optional `allergen` | `status` verified/unconfirmed and a ready-made `say` sentence | dish must resolve to exactly one dish ("salad" → which one?) · unverified rows return **no** allergen data at all |
-| `create_reservation` | `name`, `phone`, `party_size`, `date`, `time` | 1st call: `needs_confirmation`. After a yes: `booked` + reference | everything above again, plus UK phone format, name, "was it said?", no double booking, idempotent retries |
+| `create_reservation` | `name`, `phone`, `party_size`, `date`, `time` | 1st call: `needs_confirmation`. After a yes: `booked` + reference | everything above again, plus Indian mobile number format, name, "was it said?", no double booking, idempotent retries |
 | `handoff_to_staff` | `reason` | ticket number | logged in the `handoffs` table |
 
 ## The allergen guardrail
@@ -206,7 +207,8 @@ The rule from the brief, *"allergen answers must come only from the verified fie
 layers, so it doesn't depend on the model behaving:
 
 1. **The data.** A record counts as verified only if the spreadsheet says `verified = yes` and every allergen
-   is one of the 14 the UK requires restaurants to declare. Three dishes are deliberately broken:
+   is one of the 14 major allergens of international menu labelling (the EU/UK list, which covers the
+   allergens India's FSSAI labelling rules name). Three dishes are deliberately broken:
    Soup of the Day (blank), Lamb Tagine (`sesame?;peanuts?`, waiting for a supplier's spec sheet) and Sticky
    Toffee Pudding (`nuts?`, pending). For those, the tool returns *no allergen data at all*, only
    *"I can't confirm the allergens in the Sticky Toffee Pudding right now, so I won't guess. I can connect you
@@ -243,13 +245,12 @@ Real transcripts from the evaluation run: what the caller said, what Whisper hea
 <details><summary><b>A09 · Allergen record that isn't verified → no guess, offer a person</b> (passed)</summary>
 
 > 🧑 **Caller:** Does the sticky toffee pudding have nuts? I'm allergic.  
-> <sub>heard as: “Does the sticky toffee pudding have nuts and allergic?” (confidence 0.822)</sub>  
 > <sub>🔧 LLM → `get_allergen_info(allergen='nuts', dish='sticky toffee pudding')` → **unconfirmed**</sub>  
 > <sub>🛡️ verified allergen sentence added</sub>  
-> 🤖 **BistroVoice:** I'm sorry, I can't confirm the allergens in the Sticky Toffee Pudding right now, so I won't guess. I can connect you with a member of our team who can check.
+> 🤖 **BistroVoice:** I'm sorry, I can't confirm the allergens in the Sticky Toffee Pudding right now, so I won't guess. I can connect you with a member of our team who can check. Would you like me to connect you with a staff member?
 >
 > 🧑 **Caller:** Yes please, put me through to someone.  
-> <sub>heard as: “Yes please put me through to someone.” (confidence 0.907)</sub>  
+> <sub>heard as: “Yes please put me through to someone.” (confidence 0.911)</sub>  
 > <sub>🔧 LLM → `handoff_to_staff(reason='Allergen inquiry for Sticky Toffee Pudding')` → **handed_off**</sub>  
 > 🤖 **BistroVoice:** I've passed you to a member of our team, and they'll be with you shortly.
 
@@ -258,70 +259,70 @@ Real transcripts from the evaluation run: what the caller said, what Whisper hea
 <details><summary><b>U01 · Requested time is full → nearest free times → booked</b> (passed)</summary>
 
 > 🧑 **Caller:** Have you got a table for four on Friday at 7:30?  
-> <sub>heard as: “Have you got a table for 4 on Friday at 7.30.” (confidence 0.841)</sub>  
+> <sub>heard as: “Have you got a table for 4 on Friday at 7.30?” (confidence 0.847)</sub>  
 > <sub>🔧 LLM → `check_table_availability(date='2026-11-20', party_size=4, time='19:30')` → **not available**</sub>  
-> 🤖 **BistroVoice:** I'm sorry, we don't have a table for four at 7:30 pm on Friday. The nearest free times are 5:30 pm, 9:00 pm, or 9:15 pm. Which would you prefer?
+> 🤖 **BistroVoice:** I'm sorry, we don't have a table at 7:30 pm on Friday; the nearest openings are 5:30 pm, 9:00 pm, or 9:15 pm. Would you like to book one of those?
 >
 > 🧑 **Caller:** 9pm is fine.  
-> <sub>🔧 LLM → `create_reservation(date='2026-11-20', name='', party_size=4, phone='', time='21:00')` → **invalid_name**</sub>  
-> 🤖 **BistroVoice:** May I have the name for the reservation, please?
+> 🤖 **BistroVoice:** Great, may I have your name and a 10-digit mobile number, please?
 >
-> 🧑 **Caller:** Tom Baker, 07700 900231.  
-> <sub>heard as: “Tom Bacon 07700900231” (confidence 0.719)</sub>  
-> <sub>🔧 LLM → `create_reservation(date='2026-11-20', name='Tom Bacon', party_size=4, phone='07700900231', time='21:00')` → **needs_confirmation**</sub>  
-> 🤖 **BistroVoice:** Just to confirm: a table for 4 on Friday 20 November at 9pm, under the name Tom Bacon, phone 07700 900231. Shall I book that?
+> 🧑 **Caller:** Anil Mathur, 98200 10231.  
+> <sub>heard as: “Anal Mather 98200 10231” (confidence 0.503)</sub>  
+> <sub>🔧 LLM → `create_reservation(date='2026-11-20', name='Anal Mather', party_size=4, phone='9820010231', time='21:00')` → **needs_confirmation**</sub>  
+> 🤖 **BistroVoice:** Just to confirm: a table for 4 on Friday 20 November at 9pm, under the name Anal Mather, phone 98200 10231. Shall I book that?
 >
 > 🧑 **Caller:** Yes please.  
-> <sub>🔧 code → `create_reservation(name='Tom Bacon', phone='07700900231', party_size=4, date='2026-11-20', time='21:00')` → **booked**</sub>  
+> <sub>🔧 code → `create_reservation(name='Anal Mather', phone='9820010231', party_size=4, date='2026-11-20', time='21:00')` → **booked**</sub>  
 > <sub>🛡️ confirmed by code</sub>  
-> 🤖 **BistroVoice:** You're booked: a table for 4 on Friday 20 November at 9pm under the name Tom Bacon. Your reference number is 1028.
+> 🤖 **BistroVoice:** You're booked: a table for 4 on Friday 20 November at 9pm under the name Anal Mather. Your reference number is 1028.
 >
-> <sub>📒 reservations table: #1028 Tom Bacon, 4 people, 2026-11-20 21:00, table T5</sub>
+> <sub>📒 reservations table: #1028 Anal Mather, 4 people, 2026-11-20 21:00, table T5</sub>
 
 </details>
 
 <details><summary><b>M05 · Wrong day caught at the read-back → corrected → booked</b> (passed)</summary>
 
-> 🧑 **Caller:** Table for two on Thursday at 1pm, Joe Tan, 07700 900255.  
-> <sub>heard as: “Table for 2 on Thursday at 1pm, Jotan, 07700, 900255.” (confidence 0.86)</sub>  
+> 🧑 **Caller:** Table for two on Thursday at 1pm, Jay Rao, 98200 10255.  
+> <sub>heard as: “Table for 2 on Thursday at 1 p.m. J Rao 98200, 10255.” (confidence 0.86)</sub>  
 > <sub>🔧 LLM → `check_table_availability(date='2026-11-20', party_size=2, time='13:00')` → **available**</sub>  
-> <sub>🔧 LLM → `create_reservation(date='2026-11-20', name='Joe Tan', party_size=2, phone='07700900255', time='13:00')` → **needs_confirmation**</sub>  
-> 🤖 **BistroVoice:** Just to confirm: a table for 2 on Friday 20 November at 1pm, under the name Joe Tan, phone 07700 900255. Shall I book that?
+> <sub>🔧 LLM → `create_reservation(date='2026-11-20', name='Jay Rao', party_size=2, phone='9820010255', time='13:00')` → **needs_confirmation**</sub>  
+> 🤖 **BistroVoice:** Just to confirm: a table for 2 on Friday 20 November at 1pm, under the name Jay Rao, phone 98200 10255. Shall I book that?
 >
 > 🧑 **Caller:** No, I said Thursday, not Friday.  
 > <sub>🔧 LLM → `check_table_availability(date='2026-11-19', party_size=2, time='13:00')` → **available**</sub>  
-> 🤖 **BistroVoice:** Great, a table for 2 on Thursday 19 November at 1pm is free. Shall I go ahead and book it for Joe Tan, phone 07700 900255?
+> 🤖 **BistroVoice:** Great, a table for 2 on Thursday 19 November at 1pm is free. Shall I book it for Jay Rao, phone 98200 10255? Please confirm if I should book the table for 2 on Thursday 19 November at 1pm for Jay Rao, phone 98200 10255.
 >
 > 🧑 **Caller:** Yes, that's right.  
-> <sub>🔧 LLM → `create_reservation(date='2026-11-19', name='Joe Tan', party_size=2, phone='07700900255', time='13:00')` → **booked**</sub>  
-> 🤖 **BistroVoice:** You're booked: a table for 2 on Thursday 19 November at 1pm under the name Joe Tan. Your reference number is 1028.
+> <sub>🔧 LLM → `create_reservation(date='2026-11-19', name='Jay Rao', party_size=2, phone='9820010255', time='13:00')` → **booked**</sub>  
+> 🤖 **BistroVoice:** You're booked: a table for 2 on Thursday 19 November at 1pm under the name Jay Rao. Your reference number is 1028.
 >
-> <sub>📒 reservations table: #1028 Joe Tan, 2 people, 2026-11-19 13:00, table T1</sub>
+> <sub>📒 reservations table: #1028 Jay Rao, 2 people, 2026-11-19 13:00, table T1</sub>
 
 </details>
 
 <details><summary><b>F05 · Handoff system down → the restaurant's number, not a fake transfer</b> (passed)</summary>
 
 > 🧑 **Caller:** Can I speak to a manager please?  
-> <sub>🔧 LLM → `handoff_to_staff(reason='caller wants to speak to manager')` → **system_unavailable**</sub>  
-> 🤖 **BistroVoice:** I'm sorry, I can't put you through right now. Please call us directly on 020 7946 0321.
+> <sub>🔧 LLM → `handoff_to_staff(reason='Caller requested to speak to a manager')` → **system_unavailable**</sub>  
+> 🤖 **BistroVoice:** I'm sorry, I can't put you through right now. Please call us directly on 022 4000 0321.
 
 </details>
 <!-- samples:end -->
 
 ## Data
 
-Everything is fictional and made by me for this project, in plain CSV so anyone can edit it in a spreadsheet:
+The restaurant, **Olive & Ember**, is fictional: a bistro on Hill Road, Bandra West, Mumbai, with prices in
+rupees and every date and time in India Standard Time (IST). Everything is made by me for this project, in plain CSV so anyone can edit it in a spreadsheet:
 [`data/`](data). `bistrovoice init-db` rebuilds SQLite from it and refuses broken references.
 
 | File | Rows | Notes |
 |---|---|---|
 | `menu.csv` | 20 dishes | dish, description, price, category |
 | `ingredients.csv` | 81 | one row per ingredient, for menu questions only, *never* for allergens |
-| `allergens.csv` | 20 | `contains` uses the 14 UK allergens. **3 rows deliberately missing or unclear** |
+| `allergens.csv` | 20 | `contains` uses the 14 major allergens. **3 rows deliberately missing or unclear** |
 | `opening_hours.csv` | 12 | split lunch/dinner service, last seating, closed Mondays |
 | `tables.csv` | 11 tables | 2 to 8 seats |
-| `reservations.csv` | 27 | Friday dinner deliberately full, to test unavailable times. Phone numbers are from Ofcom's range reserved for drama (07700 900xxx) |
+| `reservations.csv` | 27 | Friday dinner deliberately full, to test unavailable times. Names and Indian mobile numbers are made up (98200 100xx) |
 | `restaurant.csv` | settings | booking length 120 min, max online party 8, kitchen cross-contact note |
 
 ## Evaluation
@@ -350,43 +351,42 @@ once, more slowly.
 
 | Category | Passed |
 |---|---|
-| simple booking | 6/8 |
-| two requests | 5/7 |
+| simple booking | 7/8 |
+| two requests | 7/7 |
 | allergen (verified) | 6/6 |
-| allergen (missing / unclear) | 6/6 |
+| allergen (missing / unclear) | 5/6 |
 | unavailable time | 6/7 |
-| tool failure | 5/6 |
-| misheard input | 6/6 |
+| tool failure | 6/6 |
+| misheard input | 5/6 |
 | menu and staff | 4/4 |
 
 **Latency per caller turn (ms)**, laptop CPU (Intel Core Ultra 7 155U, no GPU)
 
 | Stage | p50 | p95 |
 |---|---|---|
-| Speech-to-text (faster-whisper base.en) | 1,479 | 1,883 |
-| LLM, all calls in the turn | 1,064 | 3,707 |
-| Tools (Python + SQLite) | 1 | 2 |
-| Text-to-speech, first sentence (Piper) | 353 | 858 |
-| **End of caller's speech → first audio** | 2,836 | 5,200 |
+| Speech-to-text (faster-whisper base.en) | 1,474 | 1,670 |
+| LLM, all calls in the turn | 840 | 2,700 |
+| Tools (Python + SQLite) | 1 | 3 |
+| Text-to-speech, first sentence (Piper) | 236 | 327 |
+| **End of caller's speech → first audio** | 2,302 | 4,048 |
 
 "First audio" is measured from the end of the caller's audio: in the browser add the 760 ms of silence the
-VAD waits for before deciding the caller has finished. LLM calls per turn: 1.26
+VAD waits for before deciding the caller has finished. LLM calls per turn: 1.23
 (read-backs, receipts and confirmations are code, so many turns need one call or none).
 
 **What the guardrails did** during the run
 
 | Event | Count |
 |---|---|
-| `templated_reply` | 26 |
-| `confirmed_by_code` | 18 |
+| `templated_reply` | 31 |
+| `confirmed_by_code` | 21 |
 | `verified_allergen_sentence_added` | 8 |
-| `duplicate_removed` | 7 |
-| `asr_low_confidence` | 3 |
-| `allergen_question_answered_by_code` | 2 |
-| `allergen_sentence_removed` | 1 |
-| `handoff_requested_by_caller` | 1 |
+| `duplicate_removed` | 6 |
+| `asr_low_confidence` | 4 |
+| `allergen_sentence_removed` | 2 |
+| `allergen_question_answered_by_code` | 1 |
+| `reply_built_from_verified_sentences` | 1 |
 | `llm_error` | 1 |
-| `malformed_tool_call` | 1 |
 
 <details><summary><b>All 50 scenarios</b></summary>
 
@@ -398,14 +398,14 @@ VAD waits for before deciding the caller has finished. LLM calls per turn: 1.26
 | B04 | simple booking | Table for one tonight | ✅ |  |
 | B05 | simple booking | Sunday lunch for four | ✅ |  |
 | B06 | simple booking | Next Tuesday | ✅ |  |
-| B07 | simple booking | Details given one at a time | ❌ | booking_correct |
+| B07 | simple booking | Details given one at a time | ✅ |  |
 | B08 | simple booking | International phone format | ❌ | booking_correct |
 | T01 | two requests | The brief's example: table + pesto nuts | ✅ |  |
 | T02 | two requests | Booking + dessert menu | ✅ |  |
 | T03 | two requests | Gluten question + booking | ✅ |  |
-| T04 | two requests | Booking + eggs in tiramisu | ❌ | booking_correct, allergen:Tiramisu |
+| T04 | two requests | Booking + eggs in tiramisu | ✅ |  |
 | T05 | two requests | Menu search + Monday opening | ✅ |  |
-| T06 | two requests | Busy time + unconfirmed allergen | ❌ | booking_correct, handoff_decision, reply_any |
+| T06 | two requests | Busy time + unconfirmed allergen | ✅ |  |
 | T07 | two requests | Booking + shellfish in calamari | ✅ |  |
 | A01 | allergen (verified) | Pesto and nuts | ✅ |  |
 | A02 | allergen (verified) | Burrata and a nut allergy | ✅ |  |
@@ -417,16 +417,16 @@ VAD waits for before deciding the caller has finished. LLM calls per turn: 1.26
 | A08 | allergen (missing / unclear) | Lamb tagine, unclear record | ✅ |  |
 | A09 | allergen (missing / unclear) | Pudding + nuts, accepts staff | ✅ |  |
 | A10 | allergen (missing / unclear) | All allergens in the soup, accepts staff | ✅ |  |
-| A11 | allergen (missing / unclear) | Unclear dish, then a verified one | ✅ |  |
+| A11 | allergen (missing / unclear) | Unclear dish, then a verified one | ❌ | allergen:Lamb Tagine |
 | A12 | allergen (missing / unclear) | Which desserts are nut free? | ✅ |  |
 | U01 | unavailable time | Busy Friday, takes 9pm | ✅ |  |
 | U02 | unavailable time | Busy Friday, declines alternatives | ✅ |  |
-| U03 | unavailable time | Closed on Monday | ❌ | booking_correct |
-| U04 | unavailable time | After last seating | ✅ |  |
+| U03 | unavailable time | Closed on Monday | ✅ |  |
+| U04 | unavailable time | After last seating | ❌ | booking_correct |
 | U05 | unavailable time | Between lunch and dinner today | ✅ |  |
 | U06 | unavailable time | Party of twelve goes to staff | ✅ |  |
 | U07 | unavailable time | Date in the past | ✅ |  |
-| F01 | tool failure | Booking database down, accepts staff | ❌ | reply_any |
+| F01 | tool failure | Booking database down, accepts staff | ✅ |  |
 | F02 | tool failure | Availability check down, declines staff | ✅ |  |
 | F03 | tool failure | Allergen lookup down | ✅ |  |
 | F04 | tool failure | Menu search down | ✅ |  |
@@ -434,7 +434,7 @@ VAD waits for before deciding the caller has finished. LLM calls per turn: 1.26
 | F06 | tool failure | LLM provider down | ✅ |  |
 | M01 | misheard input | Low-confidence transcript | ✅ |  |
 | M02 | misheard input | Confident but garbled | ✅ |  |
-| M03 | misheard input | Two heard as twenty-two | ✅ |  |
+| M03 | misheard input | Two heard as twenty-two | ❌ | booking_correct |
 | M04 | misheard input | Phone number missing a digit | ✅ |  |
 | M05 | misheard input | Wrong day caught at read-back | ✅ |  |
 | M06 | misheard input | Noise, then a question | ✅ |  |
@@ -482,46 +482,53 @@ the tests and the evaluation found:
 | 25 | "Yes, please put me through" was answered with another question about the phone number | run 2, F01 | An explicit request for a person is honoured by code if the model doesn't hand over |
 | 26 | Fix 21 went too far: "Yes" misheard as "Bass," → "could you say that again?" → "Yeah" voided the read-back | U04 | A "say that again" exchange adds nothing new, so the read-back before it still counts |
 | 27 | **My checker** didn't accept "I can't check allergen information right now, so I won't guess" because it doesn't name the dish | run 3, F03 | It now counts as a correct "can't confirm" answer; all three runs re-graded the same way (run 2's vaguer "I couldn't get that information" still fails) |
+| 28 | The restaurant ran on London time and pounds, so a caller in India at 10:40 pm was offered "5:45 pm today" | live demo | Moved to Mumbai: IST clock, prices in rupees, Indian mobile numbers. The sample bookings are now lined up with the restaurant's date, not the server's (Render runs on UTC, which is still "yesterday" until 5:30 am IST) |
+| 29 | Whisper wrote "98200 10207" as "98200, 10207" and the model kept asking for "a 10-digit number" | run 4, B05, B07 | Code joins the two halves before the model sees the line |
+| 30 | The model checked four desserts for nuts, then wrote no reply: the caller heard "Sorry, could you say that again?" | run 4, A12 | When that happens, code speaks the verified allergen sentences it already has |
+| 31 | **My checker** counted "the name of the soup you'd like the allergen details for?" as an allergen claim | run 4, A10 | A question that names no allergen isn't a claim; every run re-graded the same way |
+| 32 | The model broke off a sentence and leaked its plan: "Yes, the Ro... We need to respond short. Yes, the Roasted Cauliflower Steak contains sesame." | run 5, A11 | The broken-off fragment and planning notes ("We need to respond...") are dropped before speaking |
 
-**Three runs.** Each run found problems that were fixed before the next one: run 1 stopped at call 31 when the
+**Five runs.** Each run found problems that were fixed before the next one: run 1 stopped at call 31 when the
 free daily quota ran out (fixes 15-20), run 2 covered all 50 calls (fixes 21-27 came from it and from early
-run-3 attempts), and run 3 is the final code. (Two small changes came after run 3 and are covered by unit tests
-only: an "always reply in English" line in the prompt, and the model's question moved after a verified allergen
-answer that code inserted, so the caller is asked last.) Each column is scored on that run's own calls:
+run-3 attempts), and run 3 was the final code for the London version. Runs 4 and 5 are the Mumbai version (fix
+28): Indian names and mobile numbers, rupees, IST. Run 4 found three more problems (fixes 29-31) and run 5 is
+the final code. (One small change came after run 5 and is covered by unit tests only: fix 32.) Each column is
+scored on that run's own calls, with the scenarios of its own version:
 
 <!-- compare:start -->
-| | Run 1 (31 calls) | Run 2 (50 calls) | **Run 3, final** (50 calls) |
-|---|---|---|---|
-| Task completion | 77% | 88% | 88% |
-| Tool selection | 93% | 93% | 88% |
-| Tool arguments | 84% | 92% | 88% |
-| Handoff accuracy | 100% | 98% | 98% |
-| Made-up allergen answers heard | 0 | 0 | 0 |
-| **Wrong bookings** | 0 | 1 | 0 |
-| Caller had to repeat a line | 4 | 6 | 6 |
-| First audio, p50 | 2.8 s | 2.9 s | 2.8 s |
+| | Run 1 (31 calls) | Run 2 (50 calls) | Run 3, London (50 calls) | Run 4, Mumbai (50 calls) | **Run 5, final** (50 calls) |
+|---|---|---|---|---|---|
+| Task completion | 77% | 88% | 88% | 86% | 92% |
+| Tool selection | 93% | 93% | 88% | 92% | 97% |
+| Tool arguments | 84% | 92% | 88% | 87% | 88% |
+| Handoff accuracy | 100% | 98% | 98% | 98% | 100% |
+| Made-up allergen answers heard | 0 | 0 | 0 | 0 | 0 |
+| **Wrong bookings** | 0 | 1 | 0 | 0 | 0 |
+| Caller had to repeat a line | 4 | 6 | 6 | 6 | 3 |
+| First audio, p50 | 2.8 s | 2.9 s | 2.8 s | 2.4 s | 2.3 s |
 <!-- compare:end -->
 
-Task completion stops at 88% in runs 2 and 3, and the reason is the most useful finding of the project: the
-fixes removed the failures they targeted (the wrong booking in M05, the failure paths F03 and F05), but which
-calls Whisper mishears changes from run to run, and at 50 calls that variation is as large as the fixes. What
-the fixes did move is safety: **run 2 wrote one wrong booking, run 3 none**, and no run ever let a made-up
-allergen answer reach a caller.
+Task completion went 88% → 86% → 92% across runs 3-5, and the dip in run 4 is the most useful finding of the
+project. Moving to Indian names and numbers changed what Whisper heard: it writes a spoken mobile number as
+"98200, 10207", and the model then kept asking for "a 10-digit number". The safety numbers didn't move at
+all: **no run since run 2 has written a wrong booking**, and no run ever let a made-up allergen answer reach a
+caller. Which calls Whisper mishears also changes from run to run, so at 50 calls one or two calls either way
+is noise.
 
-**Every one of the six failures in run 3 starts with speech recognition:**
+**Every one of the four failures in run 5 starts with speech recognition:**
 
 | Call | What Whisper heard | What the agent did |
 |---|---|---|
-| B07 | "half past twelve" → "Have past 12" | Asked for the exact time (right), but the scripted caller can't answer a question it doesn't expect |
-| B08 | the "+44 7700 900208" part of the line was lost | Asked for the number; the scripted caller said "That's right" |
-| T04 | "egg in it" → "agony" | Asked which allergen was meant (right), **but skipped the table request in the same sentence** |
-| T06 | "four" → "for for", "9pm" → "9p" | **The model read "9p" as a party of nine** instead of asking; the scripted "Yes" then accepted a handoff (the run's one unwanted handoff) |
-| U03 | the phone number lost a digit, twice | Refused the 10-digit number both times (right); the model's wrong date for "Tuesday" was caught by fix 15 on the way |
-| F01 | the name and number were dropped from the first line | Asked for them, so the simulated outage was never reached; "put me through" was honoured (fix 25) |
+| B08 | "two", the name and the whole "+91 98200 10208" were lost: "The table for tomorrow at 7 p.m. please names current aside" | Asked how many people (right); the scripted caller said "That's right" |
+| A11 | "Is there any in the lamb tagine?" was dropped, only "My son is allergic to sesame" survived | Asked which dish (right), so the unverified Lamb Tagine never came up. The verified Cauliflower Steak answer was right |
+| U04 | "Yes" → "Death" (confidence 0.48) | Didn't book (right) and offered staff instead of asking again |
+| M03 | "Yes" → "Death", then "Dask" (0.26, 0.35) | Below the confidence gate, so it asked again twice (right); the scripted caller ran out of lines |
 
-**Known weaknesses:** speech recognition of names, numbers and short words on a laptop CPU; the model
-occasionally handling only one of two requests (T04) or guessing from garbled text instead of asking (T06). A
-human caller would correct most of these at the read-back; the scripted caller can't.
+**Known weaknesses:** speech recognition of names, numbers and short words on a laptop CPU, worse for Indian
+names (Whisper's English models were trained mostly on Western names: "Megha Shah" came out as "make a shot").
+The agent reads every booking back with the name and number, so a real caller can correct it; the scripted
+caller can't. The local voice is British (Piper has no Indian-English voice); the hosted demo uses the
+browser's Indian-English voice where it has one.
 
 ## Speech-to-text model choice
 
@@ -532,16 +539,17 @@ needs survived.
 
 | Model | Word error rate | Key facts kept | p50 latency (ms) | Real-time factor |
 |---|---|---|---|---|
-| tiny.en + prompt, beam 1 | 10.8% | 19/28 | 312 | 0.15 |
-| base.en, beam 1 | 11.7% | 22/28 | 728 | 0.37 |
-| base.en + prompt, beam 1 | 8.5% | 27/28 | 825 | 0.40 |
-| base.en + prompt, beam 5 | 8.8% | 27/28 | 1,016 | 0.51 |
-| small.en + prompt, beam 1 | 6.2% | 26/28 | 2,468 | 1.23 |
+| tiny.en + prompt, beam 1 | 14.5% | 18/28 | 347 | 0.17 |
+| base.en, beam 1 | 10.2% | 21/28 | 581 | 0.29 |
+| base.en + prompt, beam 1 | 9.3% | 24/28 | 772 | 0.42 |
+| base.en + prompt, beam 5 | 8.1% | 24/28 | 1,352 | 0.66 |
+| small.en + prompt, beam 1 | 8.0% | 25/28 | 3,544 | 1.78 |
 
-The prompt (dish names, a phone-number example, allergy words) is the biggest win: 22 → 27 key facts for
-base.en. Beam 5 keeps the same facts here, but on a separate set of phone-number lines it got 7/10 right against
-4/10 for greedy decoding, which is worth ~0.2 s for a booking agent. small.en is 2.5x slower and no better.
-Phone numbers stay the hardest part, see the build log below.
+The prompt (dish names, a phone-number example, allergy words) is the biggest win: 21 → 24 key facts for
+base.en, and "nut free" is no longer heard as "not free". Beam 5 cuts word errors from 9.3% to 8.1% here, and on
+a separate set of phone-number lines it got 7/10 right against 4/10 for greedy decoding, which is worth ~0.5 s
+for a booking agent. small.en keeps one more fact but is 2.6x slower. Every model hears "trofie" as "trophy";
+callers in the evaluation ask about "the pesto", which they all get right. Phone numbers stay the hardest part, see the build log below.
 <!-- stt:end -->
 
 ## Run it yourself
@@ -587,7 +595,7 @@ from a local run in two places, both set in the [`Dockerfile`](Dockerfile):
 | | Local and evaluation | Hosted demo | Why |
 |---|---|---|---|
 | Hearing | faster-whisper base.en on the CPU | `STT_BACKEND=groq`: Whisper large-v3-turbo on the same free Groq key | Local Whisper would take ~10 s a sentence on 0.1 CPU |
-| Speaking | Piper (`en_GB-jenny_dioco`) on the server | `TTS_BACKEND=browser`: the visitor's browser speaks each piece with an English system voice | Piper took 2-6 s per sentence there |
+| Speaking | Piper (`en_GB-jenny_dioco`) on the server | `TTS_BACKEND=browser`: the visitor's browser speaks each piece with an Indian-English (`en-IN`) system voice where it has one | Piper took 2-6 s per sentence there |
 
 What happened on the way: Piper on one thread was still slow, and with longer replies the process went over
 512 MB and Render killed it mid-call (485 MB measured just before one drop). Loading the voice once, turning off
@@ -625,7 +633,7 @@ eval/
   bench_stt.py           Whisper size benchmark
   results/               the numbers in this README
 scripts/                 call simulator (barge-in test), demo video maker
-tests/                   89 unit tests, including the agent with a scripted fake LLM
+tests/                   94 unit tests, including the agent with a scripted fake LLM
 ```
 
 ## Limitations and next steps

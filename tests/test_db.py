@@ -53,7 +53,16 @@ def test_bad_csv_is_rejected(tmp_path):
     for f in DATA_DIR.glob("*.csv"):
         (tmp_path / f.name).write_text(f.read_text(encoding="utf-8"), encoding="utf-8")
     bad = tmp_path / "reservations.csv"
-    bad.write_text(bad.read_text(encoding="utf-8") + "9999,X,07700900999,2,2026-11-20,19:00,T99\n",
+    bad.write_text(bad.read_text(encoding="utf-8") + "9999,X,9820010999,2,2026-11-20,19:00,T99\n",
                    encoding="utf-8")
     with pytest.raises(ValueError, match="unknown table"):
         build_database(":memory:", data_dir=tmp_path)
+
+
+def test_today_is_the_restaurants_date_not_the_servers():
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from bistrovoice.db import restaurant_today
+
+    assert restaurant_today() == datetime.now(ZoneInfo("Asia/Kolkata")).date()

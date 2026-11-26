@@ -23,7 +23,7 @@ import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
-from datetime import date, datetime
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -32,7 +32,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .agent import Agent
 from .config import WEB_DIR, Settings
-from .db import build_database, load_rules
+from .db import build_database, load_rules, restaurant_today
 from .llm import LLMClient
 from .speech import (
     SAMPLE_RATE,
@@ -133,7 +133,7 @@ class Call:
         self.new_agent()
 
     def new_agent(self) -> None:
-        conn = build_database(":memory:", align_to=date.today())
+        conn = build_database(":memory:", align_to=restaurant_today())
         rules = load_rules(conn)
         tz = ZoneInfo(rules.timezone)
         self.ctx = ToolContext(conn=conn, rules=rules, clock=lambda: datetime.now(tz))

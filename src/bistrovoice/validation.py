@@ -103,16 +103,21 @@ def parse_name(value: str) -> str:
 
 
 def parse_phone(value: str) -> str:
-    """UK numbers: 0 + 10 digits, or +44 + 10 digits. Stored as 11 digits."""
+    """Indian mobile numbers: 10 digits starting 6-9, optionally written with
+    +91, 0091, 91 or a leading 0. Stored as the 10 digits."""
     digits = re.sub(r"[\s().,-]", "", str(value))
-    if digits.startswith("+44"):
-        digits = "0" + digits[3:]
-    elif digits.startswith("0044"):
-        digits = "0" + digits[4:]
-    if not re.fullmatch(r"0\d{10}", digits):
+    if digits.startswith("+91"):
+        digits = digits[3:]
+    elif digits.startswith("0091"):
+        digits = digits[4:]
+    elif len(digits) == 12 and digits.startswith("91"):
+        digits = digits[2:]
+    elif len(digits) == 11 and digits.startswith("0"):
+        digits = digits[1:]
+    if not re.fullmatch(r"[6-9]\d{9}", digits):
         raise ToolError(
             "invalid_phone",
-            f"{value!r} doesn't look like a UK phone number (11 digits starting with 0).",
+            f"{value!r} doesn't look like an Indian mobile number (10 digits starting with 6, 7, 8 or 9).",
         )
     return digits
 

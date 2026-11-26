@@ -47,7 +47,7 @@ TOOL_SCHEMAS = [
         "details only after the customer says yes.",
         {
             "name": {"type": "string"},
-            "phone": {"type": "string", "description": "UK phone number, digits"},
+            "phone": {"type": "string", "description": "Indian mobile number, 10 digits"},
             "party_size": PARTY,
             "date": DATE,
             "time": TIME,

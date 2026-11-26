@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import date, datetime
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from .config import Settings
@@ -13,11 +13,11 @@ from .config import Settings
 
 def open_restaurant(settings: Settings, *, rebuild: bool = False):
     """Connection + ToolContext on the real clock. Builds the DB if needed."""
-    from .db import build_database, connect, load_rules
+    from .db import build_database, connect, load_rules, restaurant_today
     from .tools import ToolContext
 
     if rebuild or not settings.db_path.exists():
-        conn = build_database(settings.db_path, align_to=date.today())
+        conn = build_database(settings.db_path, align_to=restaurant_today())
     else:
         conn = connect(settings.db_path)
     rules = load_rules(conn)

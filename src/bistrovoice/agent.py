@@ -44,7 +44,7 @@ LLM_DOWN_LINE = ("I'm sorry, I'm having technical trouble right now. "
                  "I can connect you with a member of our team.")
 
 SYSTEM_PROMPT = """\
-You are the phone host for {name}, a London restaurant. The caller hears everything you write.
+You are the phone host for {name}, a restaurant in Mumbai. The caller hears everything you write.
 Today is {today}. Dates: {calendar}.
 Hours: {hours}. Bookings every 15 minutes, 1 to {max_party} people.
 
@@ -99,8 +99,19 @@ class _Pending:
     turn: int
 
 
+def join_phone_groups(text: str) -> str:
+    """Whisper writes a spoken mobile number as "98200, 10207". The model then
+    read it as two numbers and kept asking for "a 10-digit number" (run 4,
+    B05 and B07). Joining the two halves keeps it one number."""
+    return re.sub(r"\b([6-9]\d{4})[,.]?\s+(\d{5})\b", r"\1 \2", text)
+
+
 def tidy(text: str) -> str:
     """Make model output safe to speak: plain spaces and quotes, no markdown."""
+    # Run 5, A11: "Yes, the Ro<zero-width space> We need to respond short. Yes, the
+    # Roasted...". The model broke off a sentence and leaked its own planning.
+    # A zero-width space marks the cut, so the fragment before it goes.
+    text = re.sub(r"[^.!?​]*​", " ", text).replace("​", "")
     text = text.translate({0x202F: " ", 0x00A0: " ", 0x2009: " ", 0x2011: "-", 0x2010: "-",
                            0x2013: "-", 0x2014: ", ", 0x2018: "'", 0x2019: "'", 0x201C: '"',
                            0x201D: '"', 0x2026: "..."})
@@ -113,8 +124,10 @@ def tidy(text: str) -> str:
     text = re.sub(r"\s+([,.!?])", r"\1", text).strip()
     # The model occasionally narrates the conversation ("User hasn't responded
     # yet."). A host never says "user" to a caller, so drop those sentences.
+    # Planning notes ("We need to respond short.") are dropped the same way.
     return " ".join(x for x in re.split(r"(?<=[.!?])\s+", text)
-                    if not re.search(r"\b(the )?user\b|\bassistant\b", x, re.I))
+                    if not re.search(r"\b(the )?user\b|\bassistant\b", x, re.I)
+                    and not re.match(r"(we|i) (need|should|must|have) to (respond|answer|reply|keep)\b", x, re.I))
 
 
 def _questions_last(reply: str, verified: list[str]) -> str:
@@ -147,7 +160,7 @@ def _error_kind(err: Exception) -> str:
 
 
 def _phone_for_speech(digits: str) -> str:
-    return f"{digits[:5]} {digits[5:]}" if len(digits) == 11 else digits
+    return f"{digits[:5]} {digits[5:]}" if len(digits) == 10 else digits
 
 
 class Agent:
@@ -216,6 +229,7 @@ class Agent:
 
     def respond(self, user_text: str, confidence: float | None = None) -> TurnResult:
         self.turn_no += 1
+        user_text = join_phone_groups(user_text)
         result = TurnResult(user_text=user_text, reply="")
 
         # A read-back only counts while it is the last thing the caller heard.
@@ -313,6 +327,16 @@ class Agent:
 
         result.draft = draft = tidy(draft)
         result.reply = self._check_reply(draft, result) if self.guards else draft
+        if not result.reply and self.guards:
+            # The model looked up allergens but never wrote a reply (seen in run 4:
+            # four desserts checked, then nothing). The verified sentences are
+            # already there, so the caller hears those, not "say that again".
+            said = [c.result["say"] for c in result.tool_calls
+                    if c.name == "get_allergen_info" and c.result.get("say")]
+            if said:
+                sentences = re.split(r"(?<=[.!?])\s+", " ".join(said))
+                result.reply = " ".join(dict.fromkeys(sentences))
+                result.guard_events.append("reply_built_from_verified_sentences")
         if not result.reply:
             result.reply = CLARIFY_LINE
         current.append({"role": "assistant", "content": result.reply})

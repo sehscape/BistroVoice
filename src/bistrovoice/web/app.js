@@ -135,7 +135,7 @@ function finishChunk(chunk) {
 
 // ----------------------------------------------------------------- browser voice
 // Used when the server is too small to run Piper quickly. Always an English
-// voice, British if the browser has one, whatever the system language is.
+// voice, Indian English if the browser has one, whatever the system language is.
 const synth = window.speechSynthesis;
 let englishVoice = null;
 
@@ -143,7 +143,9 @@ function pickVoice() {
   const voices = synth ? synth.getVoices() : [];
   const en = voices.filter((v) => /^en[-_]/i.test(v.lang));
   const female = /female|libby|sonia|hazel|serena|kate|zira|aria|jenny|samantha|ava|allison/i;
-  englishVoice = en.find((v) => /en[-_]GB/i.test(v.lang) && female.test(v.name))
+  englishVoice = en.find((v) => /en[-_]IN/i.test(v.lang) && /heera|neerja|female/i.test(v.name))
+    || en.find((v) => /en[-_]IN/i.test(v.lang))
+    || en.find((v) => /en[-_]GB/i.test(v.lang) && female.test(v.name))
     || en.find((v) => /en[-_]GB/i.test(v.lang))
     || en.find((v) => /en[-_]US/i.test(v.lang) && female.test(v.name))
     || en.find((v) => /en[-_]US/i.test(v.lang))
@@ -158,7 +160,7 @@ function onSpeak(m) {
   if (s.dropAudio || !synth) return;
   const u = new SpeechSynthesisUtterance(m.say || m.text);
   if (englishVoice) u.voice = englishVoice;
-  u.lang = englishVoice ? englishVoice.lang : "en-GB";
+  u.lang = englishVoice ? englishVoice.lang : "en-IN";
   const chunk = { seq: m.seq, stopped: false, speech: true };
   s.chunks.push(chunk);
   $("mic").classList.add("speaking");
@@ -380,7 +382,7 @@ function addGuard(events) {
 function renderBookings(m) {
   const days = {};
   for (const r of m.reservations) (days[r.date] ||= []).push(r);
-  const fmt = (d) => new Date(d + "T12:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
+  const fmt = (d) => new Date(d + "T12:00").toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" });
   let html = '<div class="bookings-scroll"><table><tr><th>Time</th><th>Name</th><th>Guests</th><th>Table</th><th>Ref</th></tr>';
   for (const [d, rows] of Object.entries(days).slice(0, 7)) {
     html += `<tr class="day"><td colspan="5">${fmt(d)}${d === m.today ? " (today)" : ""}</td></tr>`;

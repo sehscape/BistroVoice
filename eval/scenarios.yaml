@@ -1,5 +1,5 @@
 # 50 scripted phone calls. The clock is frozen at Wednesday 18 November 2026,
-# 15:00 London time, and every call starts from a fresh copy of data/*.csv.
+# 15:00 India time (IST), and every call starts from a fresh copy of data/*.csv.
 #
 # Turn fields
 #   say:        what the caller says (spoken by a Piper caller voice in --mode voice)
@@ -20,33 +20,33 @@
   title: Two people tomorrow at 8pm
   turns:
     - say: Hi, can I book a table for two tomorrow at 8pm?
-    - say: It's Alex Morgan, 07700 900201.
+    - say: It's Arjun Mehta, 98200 10201.
     - say: Yes, that's right.
   expect:
-    booking: {party_size: 2, date: "2026-11-19", time: "20:00", phone: "07700900201"}
+    booking: {party_size: 2, date: "2026-11-19", time: "20:00", phone: "9820010201"}
     handoff: false
     tools:
       - {name: check_table_availability, args: {date: "2026-11-19", time: "20:00", party_size: 2}}
-      - {name: create_reservation, args: {name: Alex Morgan, phone: "07700900201", party_size: 2, date: "2026-11-19", time: "20:00"}}
+      - {name: create_reservation, args: {name: Arjun Mehta, phone: "9820010201", party_size: 2, date: "2026-11-19", time: "20:00"}}
 
 - id: B02
   category: simple booking
   title: Everything in one sentence
   turns:
-    - say: Hello, this is Sam Lee. Could I book a table for three on Thursday at 1pm? My number is 07700 900202.
+    - say: Hello, this is Sanjay Rao. Could I book a table for three on Thursday at 1pm? My number is 98200 10202.
     - say: Yes please.
   expect:
-    booking: {party_size: 3, date: "2026-11-19", time: "13:00", phone: "07700900202"}
+    booking: {party_size: 3, date: "2026-11-19", time: "13:00", phone: "9820010202"}
     handoff: false
     tools:
-      - {name: create_reservation, args: {name: Sam Lee, phone: "07700900202", party_size: 3, date: "2026-11-19", time: "13:00"}}
+      - {name: create_reservation, args: {name: Sanjay Rao, phone: "9820010202", party_size: 3, date: "2026-11-19", time: "13:00"}}
 
 - id: B03
   category: simple booking
   title: Six people, "half seven"
   turns:
     - say: I'd like a table for six on Thursday at half seven in the evening.
-    - say: Name is Fatima Begum and the number is 07700 900203.
+    - say: Name is Fatima Begum and the number is 98200 10203.
     - say: Correct, go ahead.
   expect:
     booking: {party_size: 6, date: "2026-11-19", time: "19:30"}
@@ -59,7 +59,7 @@
   title: Table for one tonight
   turns:
     - say: Just me tonight, could I get a table at 6pm?
-    - say: Daniel Price, 07700 900204.
+    - say: Rahul Verma, 98200 10204.
     - say: Yep, perfect.
   expect:
     booking: {party_size: 1, date: "2026-11-18", time: "18:00"}
@@ -72,7 +72,7 @@
   title: Sunday lunch for four
   turns:
     - say: Can we book Sunday lunch for four people at 1pm?
-    - say: Under Hughes. Megan Hughes. 07700 900205.
+    - say: Under Shah. Megha Shah. 98200 10205.
     - say: Yes that's all correct.
   expect:
     booking: {party_size: 4, date: "2026-11-22", time: "13:00"}
@@ -85,7 +85,7 @@
   title: Next Tuesday
   turns:
     - say: Do you have space for two next Tuesday at 7pm?
-    - say: Great, book it for Oliver Grant, 07700 900206.
+    - say: Great, book it for Rohit Kapoor, 98200 10206.
     - say: Yes.
   expect:
     booking: {party_size: 2, date: "2026-11-24", time: "19:00"}
@@ -100,7 +100,7 @@
     - say: Hi, I'd like to make a reservation please.
     - say: Friday, for two people.
     - say: Half past twelve.
-    - say: Nadia Khan, 07700 900207.
+    - say: Nadia Khan, 98200 10207.
     - say: Yes, thank you.
   expect:
     booking: {party_size: 2, date: "2026-11-20", time: "12:30"}
@@ -112,13 +112,13 @@
   category: simple booking
   title: International phone format
   turns:
-    - say: Table for two tomorrow at 7pm please, name's Chris Doyle, number plus 44 7700 900208.
+    - say: Table for two tomorrow at 7pm please, name's Kiran Desai, number plus 91 98200 10208.
     - say: That's right.
   expect:
-    booking: {party_size: 2, date: "2026-11-19", time: "19:00", phone: "07700900208"}
+    booking: {party_size: 2, date: "2026-11-19", time: "19:00", phone: "9820010208"}
     handoff: false
     tools:
-      - {name: create_reservation, args: {phone: "07700900208", party_size: 2, date: "2026-11-19", time: "19:00"}}
+      - {name: create_reservation, args: {phone: "9820010208", party_size: 2, date: "2026-11-19", time: "19:00"}}
 
 # ------------------------------------------------------------- two requests in one turn
 - id: T01
@@ -126,7 +126,7 @@
   title: "The brief's example: table + pesto nuts"
   turns:
     - say: Can I reserve a table for four people at 7:30 tonight? Also, does the pesto contain nuts? I'm allergic.
-    - say: Lucy Brennan, 07700 900211.
+    - say: Priya Nair, 98200 10211.
     - say: Yes, please book it.
   expect:
     booking: {party_size: 4, date: "2026-11-18", time: "19:30"}
@@ -142,7 +142,7 @@
   title: Booking + dessert menu
   turns:
     - say: Could I book two people for Friday at 1pm, and what desserts do you have?
-    - say: Ryan Cole, 07700 900212.
+    - say: Ravi Kumar, 98200 10212.
     - say: Yes.
   expect:
     booking: {party_size: 2, date: "2026-11-20", time: "13:00"}
@@ -157,7 +157,7 @@
   title: Gluten question + booking
   turns:
     - say: Is the mushroom risotto gluten free? And can I get a table for three tomorrow at 8?
-    - say: Ella Ward, 07700 900213.
+    - say: Neha Joshi, 98200 10213.
     - say: Yes, go ahead.
   expect:
     booking: {party_size: 3, date: "2026-11-19", time: "20:00"}
@@ -172,7 +172,7 @@
   title: Booking + eggs in tiramisu
   turns:
     - say: A table for two tonight at 7, and does the tiramisu have egg in it?
-    - say: Jamie Fox, 07700 900214.
+    - say: Aman Gupta, 98200 10214.
     - say: Yes please.
   expect:
     booking: {party_size: 2, date: "2026-11-18", time: "19:00"}
@@ -200,7 +200,7 @@
   turns:
     - say: Table for four this Friday at 7:30, and is the sticky toffee pudding nut free?
     - say: 9pm works for us.
-    - say: Kate Morris, 07700 900216.
+    - say: Kavita Rao, 98200 10216.
     - say: Yes.
   expect:
     booking: {party_size: 4, date: "2026-11-20", time: "21:00"}
@@ -216,7 +216,7 @@
   title: Booking + shellfish in calamari
   turns:
     - say: Can I book three people for Saturday lunch at one o'clock? And does the calamari contain shellfish?
-    - say: Hugo Silva, 07700 900217.
+    - say: Vikram Singh, 98200 10217.
     - say: Yes that's right.
   expect:
     booking: {party_size: 3, date: "2026-11-21", time: "13:00"}
@@ -387,7 +387,7 @@
   turns:
     - say: Have you got a table for four on Friday at 7:30?
     - say: 9pm is fine.
-    - say: Tom Baker, 07700 900231.
+    - say: Anil Mathur, 98200 10231.
     - say: Yes please.
   expect:
     booking: {party_size: 4, date: "2026-11-20", time: "21:00"}
@@ -416,7 +416,7 @@
   turns:
     - say: Can I book a table for four on Monday at 7?
     - say: Tuesday at 7pm then.
-    - say: Grace Liu, 07700 900233.
+    - say: Sneha Patel, 98200 10233.
     - say: Yes.
   expect:
     booking: {party_size: 4, date: "2026-11-24", time: "19:00"}
@@ -431,7 +431,7 @@
   turns:
     - say: Table for two tomorrow at 10pm?
     - say: Okay, 9 o'clock then.
-    - say: Ben Ross, 07700 900234.
+    - say: Varun Shah, 98200 10234.
     - say: Yes.
   expect:
     booking: {party_size: 2, date: "2026-11-19", time: "21:00"}
@@ -445,7 +445,7 @@
   turns:
     - say: Can I get a table for two today at 3:30?
     - say: 5:30 is okay.
-    - say: Isla Grey, 07700 900235.
+    - say: Isha Malik, 98200 10235.
     - say: Yes please.
   expect:
     booking: {party_size: 2, date: "2026-11-18", time: "17:30"}
@@ -472,7 +472,7 @@
   turns:
     - say: Can I book for two yesterday at 7pm?
     - say: Oh sorry, I meant tomorrow.
-    - say: Leo Hart, 07700 900237.
+    - say: Manoj Pillai, 98200 10237.
     - say: Yes.
   expect:
     booking: {party_size: 2, date: "2026-11-19", time: "19:00"}
@@ -486,7 +486,7 @@
   title: Booking database down, accepts staff
   faults: [create_reservation]
   turns:
-    - say: Table for two tomorrow at 7pm please. Anna Webb, 07700 900241.
+    - say: Table for two tomorrow at 7pm please. Anjali Sharma, 98200 10241.
     - say: Yes, book it.
     - say: Yes please, put me through.
   expect:
@@ -534,7 +534,7 @@
     booking: none
     handoff: false
     reply_any: [sorry, apolog]
-    reply_none: ["£", "pounds", tiramisu, sorbet, mousse, cheesecake, brownie]
+    reply_none: ["₹", "rupees", tiramisu, sorbet, mousse, cheesecake, brownie]
     tools:
       - {name: search_menu, args: {query: dessert}}
 
@@ -571,7 +571,7 @@
       heard: Table for for at heaven thirty to night peas.
       confidence: 0.31
     - say: A table for four at seven thirty tonight.
-    - say: Mark Evans, 07700 900251.
+    - say: Karan Mehra, 98200 10251.
     - say: Yes.
   expect:
     booking: {party_size: 4, date: "2026-11-18", time: "19:30"}
@@ -588,7 +588,7 @@
       heard: Can I book a cable for bore at heaven tonight?
       confidence: 0.71
     - say: Sorry, a table for four people at 7pm tonight.
-    - say: Rosa Diaz, 07700 900252.
+    - say: Riya Das, 98200 10252.
     - say: Yes.
   expect:
     booking: {party_size: 4, date: "2026-11-18", time: "19:00"}
@@ -605,7 +605,7 @@
       heard: Table for 22 tomorrow at 8pm.
       confidence: 0.82
     - say: No, two people, just two.
-    - say: Paul Young, 07700 900253.
+    - say: Pranav Joshi, 98200 10253.
     - say: Yes.
   expect:
     booking: {party_size: 2, date: "2026-11-19", time: "20:00"}
@@ -618,24 +618,24 @@
   category: misheard input
   title: Phone number missing a digit
   turns:
-    - say: Table for two tomorrow at 7, it's Kim Park, 07700 900254.
-      heard: Table for two tomorrow at 7, it's Kim Park, 07700 90254.
+    - say: Table for two tomorrow at 7, it's Kunal Bose, 98200 10254.
+      heard: Table for two tomorrow at 7, it's Kunal Bose, 98200 1025.
       confidence: 0.77
-    - say: It's 07700 900254.
+    - say: It's 98200 10254.
     - say: Yes.
   expect:
-    booking: {party_size: 2, date: "2026-11-19", time: "19:00", phone: "07700900254"}
+    booking: {party_size: 2, date: "2026-11-19", time: "19:00", phone: "9820010254"}
     handoff: false
     no_action_turns: [1]
     tools:
-      - {name: create_reservation, args: {phone: "07700900254", party_size: 2, date: "2026-11-19", time: "19:00"}}
+      - {name: create_reservation, args: {phone: "9820010254", party_size: 2, date: "2026-11-19", time: "19:00"}}
 
 - id: M05
   category: misheard input
   title: Wrong day caught at read-back
   turns:
-    - say: Table for two on Thursday at 1pm, Joe Tan, 07700 900255.
-      heard: Table for two on Friday at 1pm, Joe Tan, 07700 900255.
+    - say: Table for two on Thursday at 1pm, Jay Rao, 98200 10255.
+      heard: Table for two on Friday at 1pm, Jay Rao, 98200 10255.
       confidence: 0.86
     - say: No, I said Thursday, not Friday.
     - say: Yes, that's right.
@@ -668,7 +668,7 @@
   expect:
     booking: none
     handoff: false
-    reply_any: ["£22", "22 pounds", "twenty-two"]
+    reply_any: ["1,350", "1350"]
     tools:
       - {name: search_menu, args: {query: sea bass}}
 
@@ -680,7 +680,7 @@
   expect:
     booking: none
     handoff: false
-    reply_none: ["£", "margherita", "pepperoni"]
+    reply_none: ["₹", "margherita", "pepperoni"]
     tools:
       - {name: search_menu, args: {query: pizza}}
 

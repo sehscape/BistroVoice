@@ -54,8 +54,8 @@ def test_call_matching_normalises_arguments():
     bad = {"name": "check_table_availability", "args": {"date": "2026-11-18", "time": "19:00", "party_size": 4}}
     assert call_matches(exp, ok) == (True, True)
     assert call_matches(exp, bad) == (True, False)
-    phone = {"name": "create_reservation", "args": {"phone": "07700900201"}}
-    assert call_matches(phone, {"name": "create_reservation", "args": {"phone": "+44 7700 900201"}}) == (True, True)
+    phone = {"name": "create_reservation", "args": {"phone": "9820010201"}}
+    assert call_matches(phone, {"name": "create_reservation", "args": {"phone": "+91 98200 10201"}}) == (True, True)
 
 
 def test_none_of_the_14_counts_as_absent():
@@ -70,3 +70,13 @@ def test_plain_allergen_outage_counts_as_unconfirmed():
     assert allergen_verdict(r, "Trofie al Pesto", "nuts", "unconfirmed") == "correct"
     vague = ["I'm sorry, I couldn't get that information."]
     assert allergen_verdict(vague, "Trofie al Pesto", "nuts", "unconfirmed") == "missing"
+
+
+def test_a_question_about_allergens_is_not_a_claim():
+    pass
+
+    replies = ["I'm sorry, I can't confirm the allergens in the Soup of the Day right now, so I won't guess. "
+               "Could you tell me the name of the soup you'd like the allergen details for?"]
+    assert allergen_verdict(replies, "Soup of the Day", "", "unconfirmed") == "correct"
+    assert allergen_verdict(["Does the soup have nuts? No, it doesn't."], "Soup of the Day", "nuts",
+                            "unconfirmed") == "made_up"

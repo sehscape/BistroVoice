@@ -37,7 +37,7 @@ from bistrovoice.llm import LLMClient, LLMError  # noqa: E402
 from bistrovoice.tools import ToolContext, resolve_dish  # noqa: E402
 from eval.checks import allergen_verdict, call_matches  # noqa: E402
 
-NOW = datetime(2026, 11, 18, 15, 0, tzinfo=ZoneInfo("Europe/London"))
+NOW = datetime(2026, 11, 18, 15, 0, tzinfo=ZoneInfo("Asia/Kolkata"))
 FIRST_NEW_RESERVATION = 1028
 
 

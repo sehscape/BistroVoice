@@ -1,0 +1,83 @@
+{
+  "mode": "voice",
+  "model": "openai/gpt-oss-120b",
+  "guards": true,
+  "scenarios": 50,
+  "turns": 123,
+  "task_completion": 0.86,
+  "by_category": {
+    "simple booking": "5/8",
+    "two requests": "5/7",
+    "allergen (verified)": "6/6",
+    "allergen (missing / unclear)": "5/6",
+    "unavailable time": "6/7",
+    "tool failure": "6/6",
+    "misheard input": "6/6",
+    "menu and staff": "4/4"
+  },
+  "tool_selection": 0.918,
+  "tool_arguments": 0.869,
+  "expected_tool_calls": 61,
+  "unwanted_actions": 1,
+  "wrong_bookings": 0,
+  "handoff_accuracy": 0.98,
+  "handoff_precision": 0.857,
+  "handoff_recall": 1.0,
+  "allergen_checks": 19,
+  "allergen_correct": 18,
+  "made_up_allergen_answers": 0,
+  "made_up_in_llm_drafts": 0,
+  "latency_ms": {
+    "stt_ms": {
+      "p50": 1490.0,
+      "p95": 1771.0,
+      "n": 123
+    },
+    "llm_ms": {
+      "p50": 844.0,
+      "p95": 2465.0,
+      "n": 99
+    },
+    "tool_ms": {
+      "p50": 1.0,
+      "p95": 3.0,
+      "n": 123
+    },
+    "tts_first_ms": {
+      "p50": 212.0,
+      "p95": 341.0,
+      "n": 123
+    },
+    "first_audio_ms": {
+      "p50": 2360.0,
+      "p95": 4230.0,
+      "n": 123
+    }
+  },
+  "llm_calls_per_turn": 1.24,
+  "caller_repeats": 6,
+  "prompt_tokens_total": 175210,
+  "cached_tokens_total": 89088,
+  "completion_tokens_total": 9437,
+  "guard_events": {
+    "templated_reply": 27,
+    "confirmed_by_code": 18,
+    "allergen_question_answered_by_code": 2,
+    "verified_allergen_sentence_added": 8,
+    "asr_low_confidence": 4,
+    "allergen_sentence_removed": 1,
+    "duplicate_removed": 5,
+    "llm_error": 1,
+    "malformed_tool_call": 1
+  },
+  "failed": [
+    "B05",
+    "B07",
+    "B08",
+    "T02",
+    "T04",
+    "A12",
+    "U01"
+  ],
+  "complete": true
+}

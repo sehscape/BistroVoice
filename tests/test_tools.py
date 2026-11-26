@@ -15,7 +15,7 @@ from bistrovoice.tools import (
     run_tool,
     search_menu,
 )
-from conftest import LONDON
+from conftest import IST
 
 # ---------------------------------------------------------------- availability
 
@@ -66,7 +66,7 @@ def test_too_little_notice(conn):
     from bistrovoice.db import load_rules
     from bistrovoice.tools import ToolContext
 
-    late = ToolContext(conn, load_rules(conn), lambda: datetime(2026, 11, 18, 17, 20, tzinfo=LONDON))
+    late = ToolContext(conn, load_rules(conn), lambda: datetime(2026, 11, 18, 17, 20, tzinfo=IST))
     r = run_tool(late, "check_table_availability", {"date": "2026-11-18", "time": "17:30", "party_size": 2})
     assert r["error"] == "too_soon"
 
@@ -90,29 +90,29 @@ def test_two_people_never_get_the_eight_seat_table(ctx):
 
 
 def test_booking_writes_a_row(ctx):
-    r = run_tool(ctx, "create_reservation", {"name": "Sam Lee", "phone": "07700 900 555",
+    r = run_tool(ctx, "create_reservation", {"name": "Sam Lee", "phone": "98200 10 555",
                                              "party_size": 4, "date": "2026-11-18", "time": "19:30"})
     assert r["status"] == "booked" and r["reference"] == "1028"
     row = ctx.conn.execute("SELECT * FROM reservations WHERE reservation_id = 1028").fetchone()
-    assert (row["name"], row["phone"], row["party_size"], row["time"]) == ("Sam Lee", "07700900555", 4, "19:30")
+    assert (row["name"], row["phone"], row["party_size"], row["time"]) == ("Sam Lee", "9820010555", 4, "19:30")
 
 
 def test_retrying_the_same_booking_does_not_double_book(ctx):
-    args = {"name": "Sam Lee", "phone": "07700900555", "party_size": 2, "date": "2026-11-19", "time": "19:00"}
+    args = {"name": "Sam Lee", "phone": "9820010555", "party_size": 2, "date": "2026-11-19", "time": "19:00"}
     first = run_tool(ctx, "create_reservation", args)
     again = run_tool(ctx, "create_reservation", args)
     assert again["reference"] == first["reference"] and again["already_existed"]
-    assert ctx.conn.execute("SELECT COUNT(*) FROM reservations WHERE phone='07700900555'").fetchone()[0] == 1
+    assert ctx.conn.execute("SELECT COUNT(*) FROM reservations WHERE phone='9820010555'").fetchone()[0] == 1
 
 
 def test_booking_fills_up_then_refuses(ctx):
     # Wednesday 19:30, party of 4: T5 and T9 are taken, so T6, T7, T8 and T10 are free.
     refs = []
     for i in range(4):
-        r = create_reservation(ctx, f"Guest {'ABCD'[i]}", f"0770090060{i}", 4, "2026-11-18", "19:30")
+        r = create_reservation(ctx, f"Guest {'ABCD'[i]}", f"982001060{i}", 4, "2026-11-18", "19:30")
         refs.append(r["reference"])
     assert len(set(refs)) == 4
-    r = run_tool(ctx, "create_reservation", {"name": "Guest E", "phone": "07700900609",
+    r = run_tool(ctx, "create_reservation", {"name": "Guest E", "phone": "9820010609",
                                              "party_size": 4, "date": "2026-11-18", "time": "19:30"})
     assert r["error"] == "unavailable" and r["alternatives"]
     tables = ctx.conn.execute("SELECT table_id FROM reservations WHERE name LIKE 'Guest %'").fetchall()
@@ -123,7 +123,7 @@ def test_booking_validates_name_and_phone(ctx):
     bad_phone = run_tool(ctx, "create_reservation", {"name": "Sam", "phone": "12345", "party_size": 2,
                                                      "date": "2026-11-19", "time": "19:00"})
     assert bad_phone["error"] == "invalid_phone"
-    bad_name = run_tool(ctx, "create_reservation", {"name": "4", "phone": "07700900555", "party_size": 2,
+    bad_name = run_tool(ctx, "create_reservation", {"name": "4", "phone": "9820010555", "party_size": 2,
                                                     "date": "2026-11-19", "time": "19:00"})
     assert bad_name["error"] == "invalid_name"
 
@@ -131,12 +131,12 @@ def test_booking_validates_name_and_phone(ctx):
 def test_phone_formats_from_speech_to_text(ctx):
     from bistrovoice.validation import parse_phone
 
-    for heard in ("07700, 900, 241", "077 00900 241", "+44 7700 900241", "07700-900-241"):
-        assert parse_phone(heard) == "07700900241"
+    for heard in ("98200, 10, 241", "982 0010 241", "+91 98200 10241", "098200-10241", "91 9820010241"):
+        assert parse_phone(heard) == "9820010241"
 
 
 def test_booking_in_the_past_is_refused(ctx):
-    r = run_tool(ctx, "create_reservation", {"name": "Sam Lee", "phone": "07700900555", "party_size": 2,
+    r = run_tool(ctx, "create_reservation", {"name": "Sam Lee", "phone": "9820010555", "party_size": 2,
                                              "date": "2026-11-18", "time": "12:30"})
     assert r["error"] == "past_time"
 
@@ -208,8 +208,8 @@ def test_search_menu(ctx):
 
 
 def test_prices_come_from_the_database(ctx):
-    r = search_menu(ctx, "steak frites")["results"][0]
-    assert (r["dish"], r["price"]) == ("Ember Steak Frites", "£26.00")
+    r = search_menu(ctx, "lamb chops")["results"][0]
+    assert (r["dish"], r["price"]) == ("Ember Lamb Chops", "₹1,250")
 
 
 # ---------------------------------------------------------------- failures
@@ -217,10 +217,10 @@ def test_prices_come_from_the_database(ctx):
 
 def test_simulated_outage_is_reported_not_hidden(ctx):
     ctx.faults.add("create_reservation")
-    r = run_tool(ctx, "create_reservation", {"name": "Sam Lee", "phone": "07700900555", "party_size": 2,
+    r = run_tool(ctx, "create_reservation", {"name": "Sam Lee", "phone": "9820010555", "party_size": 2,
                                              "date": "2026-11-19", "time": "19:00"})
     assert r["ok"] is False and r["error"] == "system_unavailable"
-    assert ctx.conn.execute("SELECT COUNT(*) FROM reservations WHERE phone='07700900555'").fetchone()[0] == 0
+    assert ctx.conn.execute("SELECT COUNT(*) FROM reservations WHERE phone='9820010555'").fetchone()[0] == 0
 
 
 def test_real_database_error_is_caught(ctx):

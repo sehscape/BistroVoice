@@ -95,6 +95,15 @@ def connect(path: str | Path) -> sqlite3.Connection:
     return conn
 
 
+def restaurant_today(data_dir: Path = DATA_DIR) -> date:
+    """Today's date where the restaurant is (IST), not where the server runs.
+    A host on UTC is still on "yesterday" until 5:30 am in Mumbai."""
+    from zoneinfo import ZoneInfo
+
+    tz = next(r["value"] for r in _read_csv(data_dir / "restaurant.csv") if r["key"] == "timezone")
+    return datetime.now(ZoneInfo(tz)).date()
+
+
 def build_database(
     path: str | Path,
     data_dir: Path = DATA_DIR,

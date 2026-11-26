@@ -5,9 +5,9 @@ import pytest
 
 from bistrovoice.db import build_database, load_rules
 
-LONDON = ZoneInfo("Europe/London")
+IST = ZoneInfo("Asia/Kolkata")
 # Wednesday 18 November 2026, 3pm. The sample reservations are in this week.
-NOW = datetime(2026, 11, 18, 15, 0, tzinfo=LONDON)
+NOW = datetime(2026, 11, 18, 15, 0, tzinfo=IST)
 
 
 @pytest.fixture

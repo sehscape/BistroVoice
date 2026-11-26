@@ -211,7 +211,7 @@ def _score(tokens: list[str], row: dict) -> int:
 
 
 def _price(value: float) -> str:
-    return f"£{value:.2f}"
+    return f"₹{value:,.0f}"
 
 
 def search_menu(ctx: ToolContext, query: str) -> dict:

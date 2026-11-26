@@ -99,7 +99,7 @@ async def main(url: str) -> None:
         await caller.listen()
 
         # Barge in on the read-back: stop at the first audio chunk.
-        await caller.say("Lucy Brennan, 07700 900211.")
+        await caller.say("Priya Nair, 98200 10211.")
         await caller.listen(stop_after_first_audio=True)
         await ws.send(json.dumps({"type": "interrupt", "heard": 0}))
         print("  (caller talks over the read-back)")
